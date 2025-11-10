@@ -1,0 +1,44 @@
+# Minimal build - IPv4 only
+FROM docker.io/node:18-alpine
+
+# Force IPv4-only networking by removing IPv6 support and adding hosts entries
+RUN echo 'install_options="--no-ipv6"' >> /etc/apk/apk.conf && \
+    sysctl -w net.ipv6.conf.all.disable_ipv6=1 2>/dev/null || true && \
+    sysctl -w net.ipv6.conf.default.disable_ipv6=1 2>/dev/null || true && \
+    echo '104.16.30.34 registry.npmjs.org' >> /etc/hosts && \
+    echo '104.16.31.34 registry.npmjs.org' >> /etc/hosts && \
+    echo '142.250.185.106 www.googleapis.com' >> /etc/hosts && \
+    echo '142.250.185.106 googleapis.com' >> /etc/hosts && \
+    echo '142.250.185.106 accounts.google.com' >> /etc/hosts
+
+# Configure npm for IPv4-only and better reliability
+RUN npm config set registry https://registry.npmjs.org/ && \
+    npm config set fetch-timeout 300000
+
+WORKDIR /app
+
+# Copy all files
+COPY . .
+
+# Install dependencies with no custom configuration
+RUN cd client && npm install
+RUN cd server && npm install
+
+# Build client
+RUN cd client && npm run build
+
+# Copy built client to server
+RUN mkdir -p server/public && cp -r client/build/* server/public/
+
+# Create user and set permissions
+RUN addgroup -g 1001 nodejs && \
+    adduser -S -u 1001 -G nodejs nodejs && \
+    mkdir -p server/data && \
+    chown -R nodejs:nodejs /app
+
+USER nodejs
+WORKDIR /app/server
+
+EXPOSE 3001
+
+CMD ["node", "index.js"]

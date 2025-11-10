@@ -1,0 +1,50 @@
+# Simplified single-stage build - IPv4 only
+FROM docker.io/node:18-alpine
+
+# Disable IPv6 and configure for IPv4-only networking
+RUN echo 'net.ipv6.conf.all.disable_ipv6 = 1' >> /etc/sysctl.conf && \
+    echo 'net.ipv6.conf.default.disable_ipv6 = 1' >> /etc/sysctl.conf && \
+    echo 'net.ipv6.conf.lo.disable_ipv6 = 1' >> /etc/sysctl.conf
+
+# IPv4 configuration handled by system DNS and sysctl
+
+WORKDIR /app
+
+# Install dependencies first (better caching)
+COPY package*.json ./
+COPY client/package*.json ./client/
+COPY server/package*.json ./server/
+
+# Install all dependencies
+RUN cd client && (npm ci 2>/dev/null || npm install)
+RUN cd server && (npm ci 2>/dev/null || npm install)
+
+# Copy source code
+COPY client/ ./client/
+COPY server/ ./server/
+
+# Build client
+RUN cd client && npm run build
+
+# Copy built client to server public directory
+RUN mkdir -p server/public && cp -r client/build/* server/public/
+
+# Create data directory and set permissions
+RUN addgroup -g 1001 nodejs && \
+    adduser -S -u 1001 -G nodejs nodejs && \
+    mkdir -p /app/server/data && \
+    chown -R nodejs:nodejs /app
+
+# Switch to non-root user
+USER nodejs
+
+# Set working directory to server
+WORKDIR /app/server
+
+EXPOSE 3001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://localhost:3001/api/health || exit 1
+
+CMD ["node", "index.js"]

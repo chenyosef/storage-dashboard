@@ -1,0 +1,25 @@
+# Dockerfile for pre-built application (no npm install in container)
+FROM docker.io/node:18-alpine
+
+WORKDIR /app
+
+# Copy pre-built client files
+COPY client/build/ ./public/
+
+# Copy server source and dependencies
+COPY server/ ./
+
+# Create user and set permissions
+RUN addgroup -g 1001 nodejs && \
+    adduser -S -u 1001 -G nodejs nodejs && \
+    mkdir -p /app/data && \
+    chown -R nodejs:nodejs /app
+
+USER nodejs
+
+EXPOSE 3001
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://localhost:3001/api/health || exit 1
+
+CMD ["node", "index.js"]

@@ -1,0 +1,15 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+README.md
+SETUP.md
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.DS_Store
+client/build
+server/data
+*.log
