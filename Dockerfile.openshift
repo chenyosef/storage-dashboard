@@ -1,0 +1,59 @@
+# OpenShift-optimized Dockerfile for Storage Dashboard
+FROM docker.io/node:18-alpine
+
+# OpenShift compatibility - use numeric UID that's likely to be available
+USER root
+
+# Install security updates and clean up
+RUN apk update && apk upgrade && apk add --no-cache dumb-init && rm -rf /var/cache/apk/*
+
+# Create application directory and set up non-root user
+WORKDIR /app
+
+# Create a user with a specific UID that works well with OpenShift
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -S -u 1001 -G appgroup appuser && \
+    chown -R 1001:1001 /app
+
+# Copy package files first for better layer caching
+COPY package*.json ./
+COPY client/package*.json ./client/
+COPY server/package*.json ./server/
+
+# Install dependencies
+RUN npm install --omit=dev && \
+    cd client && npm install --omit=dev && \
+    cd ../server && npm install --omit=dev && \
+    npm cache clean --force
+
+# Copy source code
+COPY . .
+
+# Build the client application
+RUN cd client && npm run build && \
+    mkdir -p ../server/public && \
+    cp -r build/* ../server/public/
+
+# Create data directory and set proper permissions
+RUN mkdir -p server/data && \
+    chown -R 1001:1001 /app && \
+    chmod -R 755 /app
+
+# Switch to non-root user
+USER 1001
+
+# Set working directory to server
+WORKDIR /app/server
+
+# Expose port
+EXPOSE 3001
+
+# Add health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3001/api/health || exit 1
+
+# Use dumb-init for proper signal handling
+ENTRYPOINT ["dumb-init", "--"]
+
+# Start the application
+CMD ["node", "index.js"]

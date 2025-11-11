@@ -14,7 +14,7 @@ RUN npm config set registry https://registry.npmjs.org/ && \
 
 WORKDIR /app/client
 COPY client/package*.json ./
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+RUN npm install
 COPY client/ ./
 RUN npm run build
 
@@ -33,7 +33,7 @@ RUN npm config set registry https://registry.npmjs.org/ && \
 
 WORKDIR /app/server
 COPY server/package*.json ./
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+RUN npm install
 COPY server/ ./
 
 FROM docker.io/node:18-alpine AS runtime
@@ -53,7 +53,7 @@ WORKDIR /app
 
 # Install server dependencies
 COPY server/package*.json ./
-RUN if [ -f package-lock.json ]; then npm ci --only=production; else npm install --only=production; fi
+RUN npm install --only=production
 
 # Copy server files
 COPY --from=server-build /app/server ./

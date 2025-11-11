@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: storage-dashboard
+  labels:
+    app: storage-dashboard
+    component: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: storage-dashboard
+      component: web
+  template:
+    metadata:
+      labels:
+        app: storage-dashboard
+        component: web
+    spec:
+      serviceAccountName: storage-dashboard
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: storage-dashboard
+        image: storage-dashboard:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3001
+          protocol: TCP
+        env:
+        - name: PORT
+          value: "3001"
+        - name: NODE_ENV
+          value: "production"
+        - name: GOOGLE_SHEET_ID
+          valueFrom:
+            configMapKeyRef:
+              name: storage-dashboard-config
+              key: google_sheet_id
+        - name: SYNC_INTERVAL_MINUTES
+          valueFrom:
+            configMapKeyRef:
+              name: storage-dashboard-config
+              key: sync_interval_minutes
+        - name: GOOGLE_CREDENTIALS_BASE64
+          valueFrom:
+            secretKeyRef:
+              name: storage-dashboard-secret
+              key: google_credentials_base64
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 3001
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 3001
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /api/health
+            port: 3001
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+      restartPolicy: Always

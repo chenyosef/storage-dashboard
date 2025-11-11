@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: storage-dashboard-config
+  labels:
+    app: storage-dashboard
+    component: config
+data:
+  # Google Sheets configuration
+  google_sheet_id: "REPLACE_WITH_YOUR_GOOGLE_SHEET_ID"
+  
+  # Sync interval in minutes (default: 5 minutes)
+  sync_interval_minutes: "5"
+  
+  # Application settings
+  log_level: "info"
+  
+  # Node.js environment
+  node_env: "production"

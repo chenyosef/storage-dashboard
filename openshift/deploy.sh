@@ -1,0 +1,278 @@
+#!/bin/bash -x
+set -e
+
+# Storage Integration Dashboard - OpenShift Deployment Script
+# This script deploys the Storage Integration Dashboard to an OpenShift cluster
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Configuration
+APP_NAME="storage-dashboard"
+NAMESPACE=${NAMESPACE:-storage-dashboard}
+IMAGE_TAG=${IMAGE_TAG:-latest}
+GOOGLE_SHEET_ID=${GOOGLE_SHEET_ID:-""}
+GOOGLE_CREDENTIALS_FILE=${GOOGLE_CREDENTIALS_FILE:-""}
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Helper functions
+log() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+warn() {
+    echo -e "${YELLOW}[WARN]${NC} $1"
+}
+
+error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+# Check prerequisites
+check_prerequisites() {
+    log "Checking prerequisites..."
+    
+    # Check if oc CLI is available
+    if ! command -v oc &> /dev/null; then
+        error "OpenShift CLI (oc) is not installed or not in PATH"
+        exit 1
+    fi
+    
+    # Check if we're logged in to OpenShift
+    if ! oc whoami &> /dev/null; then
+        error "Not logged in to OpenShift. Please run 'oc login' first"
+        exit 1
+    fi
+    
+    # Check if Docker/Podman is available for building
+    if ! command -v podman &> /dev/null && ! command -v docker &> /dev/null; then
+        error "Neither podman nor docker is available for building the image"
+        exit 1
+    fi
+    
+    success "Prerequisites check passed"
+}
+
+# Create or switch to namespace
+setup_namespace() {
+    log "Setting up namespace: $NAMESPACE"
+    
+    if oc get namespace "$NAMESPACE" &> /dev/null; then
+        log "Namespace $NAMESPACE already exists"
+    else
+        log "Creating namespace $NAMESPACE"
+        oc new-project "$NAMESPACE" || oc create namespace "$NAMESPACE"
+    fi
+    
+    oc project "$NAMESPACE"
+    success "Using namespace: $NAMESPACE"
+}
+
+# Build and push container image
+build_image() {
+    log "Building container image..."
+    
+    local build_cmd="podman"
+    if command -v docker &> /dev/null && ! command -v podman &> /dev/null; then
+        build_cmd="docker"
+    fi
+    
+    # Build the image using OpenShift-optimized Dockerfile
+    $build_cmd build -f "$PROJECT_ROOT/Dockerfile.openshift" -t "${APP_NAME}:${IMAGE_TAG}" "$PROJECT_ROOT"
+    
+    # Tag for OpenShift internal registry if available
+    if oc get route default-route -n openshift-image-registry &> /dev/null; then
+        local registry_url=$(oc get route default-route -n openshift-image-registry -o jsonpath='{.spec.host}')
+        local internal_image="${registry_url}/${NAMESPACE}/${APP_NAME}:${IMAGE_TAG}"
+        
+        log "Tagging image for OpenShift registry: $internal_image"
+        $build_cmd tag "${APP_NAME}:${IMAGE_TAG}" "$internal_image"
+        
+        log "Pushing image to OpenShift registry..."
+        $build_cmd push "$internal_image"
+        
+        # Update deployment manifest to use internal image
+        sed -i.bak "s|image: storage-dashboard:latest|image: $internal_image|g" "$SCRIPT_DIR/deployment.yaml"
+    fi
+    
+    success "Container image built and ready"
+}
+
+# Validate required environment variables
+validate_config() {
+    log "Validating configuration..."
+    
+    if [[ -z "$GOOGLE_SHEET_ID" ]]; then
+        warn "GOOGLE_SHEET_ID environment variable not set, using existing value from ConfigMap"
+    fi
+    
+    # Only require credentials file if the secret has a placeholder
+    if grep -q "REPLACE_WITH_BASE64_ENCODED_GOOGLE_CREDENTIALS" "$SCRIPT_DIR/secret.yaml"; then
+        if [[ -z "$GOOGLE_CREDENTIALS_FILE" ]] || [[ ! -f "$GOOGLE_CREDENTIALS_FILE" ]]; then
+            error "GOOGLE_CREDENTIALS_FILE must point to a valid Google Service Account JSON file"
+            echo "Set it with: export GOOGLE_CREDENTIALS_FILE='/path/to/credentials.json'"
+            exit 1
+        fi
+    else
+        log "Using existing Google credentials from Secret"
+    fi
+    
+    success "Configuration validation passed"
+}
+
+# Create ConfigMap with actual values
+create_configmap() {
+    log "Creating ConfigMap..."
+    
+    # Check if the ConfigMap needs updating
+    if grep -q "REPLACE_WITH_YOUR_GOOGLE_SHEET_ID" "$SCRIPT_DIR/configmap.yaml"; then
+        log "Updating ConfigMap with actual Google Sheet ID"
+        sed -i.bak "s|google_sheet_id: \"REPLACE_WITH_YOUR_GOOGLE_SHEET_ID\"|google_sheet_id: \"$GOOGLE_SHEET_ID\"|g" "$SCRIPT_DIR/configmap.yaml"
+    else
+        log "ConfigMap already has Google Sheet ID configured"
+    fi
+    
+    oc apply -f "$SCRIPT_DIR/configmap.yaml"
+    success "ConfigMap created/updated"
+}
+
+# Create Secret with Google credentials
+create_secret() {
+    log "Creating Secret with Google credentials..."
+
+    # Check if the Secret needs updating
+    if grep -q "REPLACE_WITH_BASE64_ENCODED_GOOGLE_CREDENTIALS" "$SCRIPT_DIR/secret.yaml"; then
+        log "Updating Secret with actual Google credentials"
+
+        # Try to get credentials from different sources
+        local encoded_creds=""
+
+        # 1. Check if GOOGLE_CREDENTIALS_BASE64 env var is set
+        if [[ -n "$GOOGLE_CREDENTIALS_BASE64" ]]; then
+            # Remove quotes if present
+            encoded_creds=$(echo "$GOOGLE_CREDENTIALS_BASE64" | tr -d '"')
+            log "Using credentials from GOOGLE_CREDENTIALS_BASE64 environment variable"
+        # 2. Check if we can load from .env file
+        elif [[ -f "$PROJECT_ROOT/.env" ]] && grep -q "GOOGLE_CREDENTIALS_BASE64" "$PROJECT_ROOT/.env"; then
+            encoded_creds=$(grep "GOOGLE_CREDENTIALS_BASE64" "$PROJECT_ROOT/.env" | cut -d'=' -f2- | tr -d '"')
+            log "Using credentials from .env file"
+        # 3. Fall back to credentials file if provided
+        elif [[ -f "$GOOGLE_CREDENTIALS_FILE" ]]; then
+            encoded_creds=$(base64 -w 0 "$GOOGLE_CREDENTIALS_FILE")
+            log "Using credentials from file: $GOOGLE_CREDENTIALS_FILE"
+        else
+            error "No Google credentials found. Set GOOGLE_CREDENTIALS_BASE64 or GOOGLE_CREDENTIALS_FILE"
+            exit 1
+        fi
+
+        sed -i.bak "s|google_credentials_base64: REPLACE_WITH_BASE64_ENCODED_GOOGLE_CREDENTIALS|google_credentials_base64: $encoded_creds|g" "$SCRIPT_DIR/secret.yaml"
+    else
+        log "Secret already has Google credentials configured"
+    fi
+
+    oc apply -f "$SCRIPT_DIR/secret.yaml"
+    success "Secret created/updated"
+}
+
+# Deploy application
+deploy_app() {
+    log "Deploying application manifests..."
+    
+    # Apply all manifests
+    oc apply -f "$SCRIPT_DIR/serviceaccount.yaml"
+    # PVC not needed - application stores data in memory from Google Sheets
+    # oc apply -f "$SCRIPT_DIR/pvc.yaml"
+    oc apply -f "$SCRIPT_DIR/service.yaml"
+    oc apply -f "$SCRIPT_DIR/deployment.yaml"
+    oc apply -f "$SCRIPT_DIR/route.yaml"
+    
+    success "Application manifests deployed"
+}
+
+# Wait for deployment to be ready
+wait_for_deployment() {
+    log "Waiting for deployment to be ready..."
+    
+    oc rollout status deployment/$APP_NAME --timeout=300s
+    
+    # Get the route URL
+    local route_url=$(oc get route $APP_NAME -o jsonpath='{.spec.host}')
+    
+    success "Deployment completed successfully!"
+    success "Application is available at: https://$route_url"
+}
+
+# Cleanup function
+cleanup() {
+    log "Cleaning up temporary files..."
+    # Restore original files
+    if [[ -f "$SCRIPT_DIR/configmap.yaml.bak" ]]; then
+        mv "$SCRIPT_DIR/configmap.yaml.bak" "$SCRIPT_DIR/configmap.yaml"
+    fi
+    if [[ -f "$SCRIPT_DIR/secret.yaml.bak" ]]; then
+        mv "$SCRIPT_DIR/secret.yaml.bak" "$SCRIPT_DIR/secret.yaml"
+    fi
+    if [[ -f "$SCRIPT_DIR/deployment.yaml.bak" ]]; then
+        mv "$SCRIPT_DIR/deployment.yaml.bak" "$SCRIPT_DIR/deployment.yaml"
+    fi
+}
+
+# Trap cleanup on exit
+trap cleanup EXIT
+
+# Main deployment flow
+main() {
+    log "Starting Storage Integration Dashboard deployment to OpenShift..."
+    
+    check_prerequisites
+    validate_config
+    setup_namespace
+    build_image
+    create_configmap
+    create_secret
+    deploy_app
+    wait_for_deployment
+    
+    success "Deployment completed successfully!"
+}
+
+# Help function
+show_help() {
+    echo "Storage Integration Dashboard - OpenShift Deployment Script"
+    echo ""
+    echo "Usage: $0 [options]"
+    echo ""
+    echo "Environment Variables:"
+    echo "  NAMESPACE              OpenShift namespace (default: storage-dashboard)"
+    echo "  IMAGE_TAG              Container image tag (default: latest)"
+    echo "  GOOGLE_SHEET_ID        Your Google Sheet ID (required)"
+    echo "  GOOGLE_CREDENTIALS_FILE Path to Google Service Account JSON (required)"
+    echo ""
+    echo "Example:"
+    echo "  export GOOGLE_SHEET_ID='1ABC123...'"
+    echo "  export GOOGLE_CREDENTIALS_FILE='./service-account.json'"
+    echo "  ./deploy.sh"
+    echo ""
+    echo "Options:"
+    echo "  -h, --help    Show this help message"
+}
+
+# Check for help flag
+if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
+    show_help
+    exit 0
+fi
+
+# Run main deployment
+main
