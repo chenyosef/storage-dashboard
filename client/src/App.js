@@ -179,137 +179,169 @@ function App() {
   const columns = currentSheetData.length > 0 ? Object.keys(currentSheetData[0]).filter(key => !['id', 'last_updated', 'sheet_name'].includes(key)) : [];
 
   return (
-    <div className="container">
-      <div className="header">
-        <h1>Storage Integration Dashboard</h1>
-        <p>OpenShift Virtualization Storage Compatibility Status</p>
+    <div className="app-container">
+      {/* Header */}
+      <header className="app-header">
+        <div className="header-content">
+          <div className="logo-section">
+            <h1>Storage Integration Dashboard</h1>
+            <p>OpenShift Virtualization Storage Compatibility</p>
+          </div>
+          <div className="header-actions">
+            <button 
+              className="btn btn-primary" 
+              onClick={handleSync}
+              disabled={loading}
+            >
+              {loading ? 'Syncing...' : 'Sync Now'}
+            </button>
+            <button 
+              className="btn btn-secondary" 
+              onClick={() => handleExport('csv')}
+            >
+              Export CSV
+            </button>
+            <button 
+              className="btn btn-secondary" 
+              onClick={() => handleExport('json')}
+            >
+              Export JSON
+            </button>
+          </div>
+        </div>
         {lastSync && (
           <div className="sync-status">
             Last updated: {new Date(lastSync).toLocaleString()}
           </div>
         )}
-      </div>
+      </header>
 
-      {error && <div className="error">{error}</div>}
-      {message && <div className="success">{message}</div>}
-
-      {sheetNames.length > 1 && (
-        <div className="tabs">
-          <div className="tab-list">
-            {sheetNames.map(sheetName => (
-              <button
-                key={sheetName}
-                className={`tab ${activeSheet === sheetName ? 'active' : ''}`}
-                onClick={() => handleSheetChange(sheetName)}
-              >
-                {sheetName}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="controls">
-        <div className="search-box">
-          <input
-            type="text"
-            placeholder="Search vendors, models, or status..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-
-        <div className="filter-controls">
-          {vendors.length > 0 && (
-            <select 
-              value={selectedVendor} 
-              onChange={(e) => setSelectedVendor(e.target.value)}
-            >
-              <option value="">All Vendors</option>
-              {vendors.map(vendor => (
-                <option key={vendor} value={vendor}>{vendor}</option>
-              ))}
-            </select>
-          )}
-
-          {statuses.length > 0 && (
-            <select 
-              value={selectedStatus} 
-              onChange={(e) => setSelectedStatus(e.target.value)}
-            >
-              <option value="">All Statuses</option>
-              {statuses.map(status => (
-                <option key={status} value={status}>{status}</option>
-              ))}
-            </select>
-          )}
-
-          {(selectedVendor || selectedStatus || searchQuery) && (
-            <button className="btn btn-secondary" onClick={resetFilters}>
-              Clear Filters
-            </button>
-          )}
-        </div>
-
-        <div className="actions">
-          <button 
-            className="btn btn-primary" 
-            onClick={handleSync}
-            disabled={loading}
-          >
-            {loading ? 'Syncing...' : 'Sync Now'}
-          </button>
-          <button 
-            className="btn btn-success" 
-            onClick={() => handleExport('csv')}
-          >
-            Export CSV
-          </button>
-          <button 
-            className="btn btn-success" 
-            onClick={() => handleExport('json')}
-          >
-            Export JSON
-          </button>
-        </div>
-      </div>
-
-      <div className="data-table">
-        <div className="table-header">
-          <h3>Storage Integration Status{activeSheet && sheetNames.length > 1 ? ` - ${activeSheet}` : ''}</h3>
-          <div className="table-stats">
-            Showing {filteredData.length} of {currentSheetData.length} records
-          </div>
-        </div>
-
-        <div className="table-container">
-          {filteredData.length > 0 ? (
-            <table>
-              <thead>
-                <tr>
-                  {columns.map(column => (
-                    <th key={column}>
-                      {column.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredData.map((row, index) => (
-                  <tr key={row.id || index}>
-                    {columns.map(column => (
-                      <td key={column}>{row[column] || '-'}</td>
-                    ))}
-                  </tr>
+      {/* Main Content Area */}
+      <div className="main-content">
+        {/* Left Sidebar */}
+        <aside className="sidebar">
+          <div className="sidebar-section">
+            <h3 className="sidebar-title">Data Sources</h3>
+            {sheetNames.length > 1 && (
+              <div className="tab-navigation">
+                {sheetNames.map(sheetName => (
+                  <button
+                    key={sheetName}
+                    className={`sidebar-tab ${activeSheet === sheetName ? 'active' : ''}`}
+                    onClick={() => handleSheetChange(sheetName)}
+                  >
+                    {sheetName}
+                  </button>
                 ))}
-              </tbody>
-            </table>
-          ) : (
-            <div className="loading">
-              {currentSheetData.length === 0 ? 'No data available' : 'No results match your search criteria'}
+              </div>
+            )}
+          </div>
+
+          <div className="sidebar-section">
+            <h3 className="sidebar-title">Search & Filters</h3>
+            
+            <div className="search-section">
+              <label htmlFor="search">Search</label>
+              <input
+                id="search"
+                type="text"
+                placeholder="Search vendors, models, or status..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="sidebar-input"
+              />
             </div>
-          )}
-        </div>
+
+            {vendors.length > 0 && (
+              <div className="filter-section">
+                <label htmlFor="vendor-filter">Vendor</label>
+                <select 
+                  id="vendor-filter"
+                  value={selectedVendor} 
+                  onChange={(e) => setSelectedVendor(e.target.value)}
+                  className="sidebar-select"
+                >
+                  <option value="">All Vendors</option>
+                  {vendors.map(vendor => (
+                    <option key={vendor} value={vendor}>{vendor}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {statuses.length > 0 && (
+              <div className="filter-section">
+                <label htmlFor="status-filter">Status</label>
+                <select 
+                  id="status-filter"
+                  value={selectedStatus} 
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  className="sidebar-select"
+                >
+                  <option value="">All Statuses</option>
+                  {statuses.map(status => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {(selectedVendor || selectedStatus || searchQuery) && (
+              <button className="btn btn-outline reset-filters" onClick={resetFilters}>
+                Clear Filters
+              </button>
+            )}
+
+            <div className="filter-stats">
+              <p>Showing {filteredData.length} of {currentSheetData.length} records</p>
+            </div>
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <main className="content-area">
+          {error && <div className="alert alert-error">{error}</div>}
+          {message && <div className="alert alert-success">{message}</div>}
+
+          <div className="data-section">
+            <div className="section-header">
+              <h2>
+                {activeSheet && sheetNames.length > 1 ? activeSheet : 'Storage Integration Status'}
+              </h2>
+            </div>
+
+            <div className="table-container">
+              {filteredData.length > 0 ? (
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      {columns.map(column => (
+                        <th key={column}>
+                          {column.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredData.map((row, index) => (
+                      <tr key={row.id || index}>
+                        {columns.map(column => (
+                          <td key={column}>{row[column] || '-'}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="empty-state">
+                  <p>
+                    {currentSheetData.length === 0 ? 'No data available' : 'No results match your search criteria'}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </main>
       </div>
     </div>
   );
