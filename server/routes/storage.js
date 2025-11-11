@@ -1,17 +1,53 @@
 const express = require('express');
 const router = express.Router();
 
-// Get all storage data
+// Get all storage data or specific sheet data
 router.get('/', (req, res) => {
   try {
+    const { sheet } = req.query;
     const dataStore = req.app.locals.dataStore;
-    const data = dataStore.getAllData();
+    
+    if (sheet) {
+      // Get specific sheet data
+      const data = dataStore.getSheetData(sheet);
+      res.json({
+        success: true,
+        data,
+        sheetName: sheet,
+        count: data.length,
+        lastSync: dataStore.getLastSyncTime()
+      });
+    } else {
+      // Get all sheets data
+      const data = dataStore.getAllData();
+      const totalRecords = Object.values(data).reduce((sum, sheet) => sum + sheet.length, 0);
+      
+      res.json({
+        success: true,
+        data,
+        sheetNames: dataStore.getSheetNames(),
+        count: totalRecords,
+        lastSync: dataStore.getLastSyncTime()
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get available sheet names
+router.get('/sheets', (req, res) => {
+  try {
+    const dataStore = req.app.locals.dataStore;
+    const sheetNames = dataStore.getSheetNames();
     
     res.json({
       success: true,
-      data,
-      count: data.length,
-      lastSync: dataStore.getLastSyncTime()
+      sheetNames,
+      count: sheetNames.length
     });
   } catch (error) {
     res.status(500).json({
@@ -24,16 +60,29 @@ router.get('/', (req, res) => {
 // Search storage data
 router.get('/search', (req, res) => {
   try {
-    const { q } = req.query;
+    const { q, sheet } = req.query;
     const dataStore = req.app.locals.dataStore;
-    const data = dataStore.searchData(q);
+    const data = dataStore.searchData(q, sheet);
     
-    res.json({
-      success: true,
-      data,
-      count: data.length,
-      query: q
-    });
+    if (sheet) {
+      // Single sheet search
+      res.json({
+        success: true,
+        data,
+        sheetName: sheet,
+        count: data.length,
+        query: q
+      });
+    } else {
+      // Multi-sheet search
+      const totalCount = Object.values(data).reduce((sum, sheet) => sum + sheet.length, 0);
+      res.json({
+        success: true,
+        data,
+        count: totalCount,
+        query: q
+      });
+    }
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -107,13 +156,16 @@ router.post('/sync', async (req, res) => {
     const sheetsService = req.app.locals.sheetsService;
     const dataStore = req.app.locals.dataStore;
     
-    const data = await sheetsService.fetchData();
+    const data = await sheetsService.fetchAllSheetsData();
     dataStore.updateData(data);
+    
+    const totalRecords = Object.values(data).reduce((sum, sheet) => sum + sheet.length, 0);
     
     res.json({
       success: true,
       message: 'Data synced successfully',
-      count: data.length,
+      count: totalRecords,
+      sheetCount: Object.keys(data).length,
       syncTime: new Date().toISOString()
     });
   } catch (error) {

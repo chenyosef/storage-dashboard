@@ -5,13 +5,17 @@ import './index.css';
 const API_BASE = '/api';
 
 function App() {
-  const [data, setData] = useState([]);
+  const [data, setData] = useState({});
   const [filteredData, setFilteredData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [lastSync, setLastSync] = useState(null);
   const [message, setMessage] = useState(null);
+
+  // Sheet/tab states
+  const [sheetNames, setSheetNames] = useState([]);
+  const [activeSheet, setActiveSheet] = useState('');
 
   // Filter states
   const [vendors, setVendors] = useState([]);
@@ -25,18 +29,33 @@ function App() {
 
   useEffect(() => {
     applyFilters();
-  }, [data, searchQuery, selectedVendor, selectedStatus]);
+  }, [data, activeSheet, searchQuery, selectedVendor, selectedStatus]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
       const response = await axios.get(`${API_BASE}/storage`);
-      setData(response.data.data);
+      
+      if (response.data.data && typeof response.data.data === 'object' && !Array.isArray(response.data.data)) {
+        // Multi-sheet data
+        setData(response.data.data);
+        setSheetNames(response.data.sheetNames || Object.keys(response.data.data));
+        
+        // Set initial active sheet if not set
+        if (!activeSheet && response.data.sheetNames && response.data.sheetNames.length > 0) {
+          setActiveSheet(response.data.sheetNames[0]);
+        }
+        
+        // Extract filter options from current active sheet data
+        const currentSheetData = response.data.data[activeSheet] || [];
+        extractFilterOptions(currentSheetData);
+      } else {
+        // Legacy single sheet data
+        setData(response.data.data || []);
+        extractFilterOptions(response.data.data || []);
+      }
+      
       setLastSync(response.data.lastSync);
-      
-      // Extract unique vendors and statuses for filters
-      extractFilterOptions(response.data.data);
-      
       setError(null);
     } catch (err) {
       setError(`Failed to load data: ${err.message}`);
@@ -67,7 +86,16 @@ function App() {
   };
 
   const applyFilters = () => {
-    let filtered = data;
+    let filtered = [];
+    
+    // Get current sheet data
+    if (Array.isArray(data)) {
+      // Legacy single sheet data
+      filtered = data;
+    } else if (data && typeof data === 'object' && activeSheet) {
+      // Multi-sheet data - get data from active sheet
+      filtered = data[activeSheet] || [];
+    }
 
     // Apply search filter
     if (searchQuery.trim()) {
@@ -80,8 +108,8 @@ function App() {
     }
 
     // Apply vendor filter
-    if (selectedVendor) {
-      const vendorField = Object.keys(data[0] || {}).find(key => 
+    if (selectedVendor && filtered.length > 0) {
+      const vendorField = Object.keys(filtered[0] || {}).find(key => 
         key.toLowerCase().includes('vendor') || key.toLowerCase().includes('manufacturer')
       );
       if (vendorField) {
@@ -90,8 +118,8 @@ function App() {
     }
 
     // Apply status filter
-    if (selectedStatus) {
-      const statusField = Object.keys(data[0] || {}).find(key => 
+    if (selectedStatus && filtered.length > 0) {
+      const statusField = Object.keys(filtered[0] || {}).find(key => 
         key.toLowerCase().includes('status') || key.toLowerCase().includes('support')
       );
       if (statusField) {
@@ -127,7 +155,12 @@ function App() {
     setSelectedStatus('');
   };
 
-  if (loading && data.length === 0) {
+  const handleSheetChange = (sheetName) => {
+    setActiveSheet(sheetName);
+    resetFilters();
+  };
+
+  if (loading && (Array.isArray(data) ? data.length === 0 : Object.keys(data).length === 0)) {
     return (
       <div className="container">
         <div className="loading">Loading storage integration data...</div>
@@ -135,7 +168,15 @@ function App() {
     );
   }
 
-  const columns = data.length > 0 ? Object.keys(data[0]).filter(key => !['id', 'last_updated'].includes(key)) : [];
+  // Get columns from current sheet data
+  let currentSheetData = [];
+  if (Array.isArray(data)) {
+    currentSheetData = data;
+  } else if (data && typeof data === 'object' && activeSheet) {
+    currentSheetData = data[activeSheet] || [];
+  }
+  
+  const columns = currentSheetData.length > 0 ? Object.keys(currentSheetData[0]).filter(key => !['id', 'last_updated', 'sheet_name'].includes(key)) : [];
 
   return (
     <div className="container">
@@ -151,6 +192,22 @@ function App() {
 
       {error && <div className="error">{error}</div>}
       {message && <div className="success">{message}</div>}
+
+      {sheetNames.length > 1 && (
+        <div className="tabs">
+          <div className="tab-list">
+            {sheetNames.map(sheetName => (
+              <button
+                key={sheetName}
+                className={`tab ${activeSheet === sheetName ? 'active' : ''}`}
+                onClick={() => handleSheetChange(sheetName)}
+              >
+                {sheetName}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="controls">
         <div className="search-box">
@@ -219,9 +276,9 @@ function App() {
 
       <div className="data-table">
         <div className="table-header">
-          <h3>Storage Integration Status</h3>
+          <h3>Storage Integration Status{activeSheet && sheetNames.length > 1 ? ` - ${activeSheet}` : ''}</h3>
           <div className="table-stats">
-            Showing {filteredData.length} of {data.length} records
+            Showing {filteredData.length} of {currentSheetData.length} records
           </div>
         </div>
 
@@ -249,7 +306,7 @@ function App() {
             </table>
           ) : (
             <div className="loading">
-              {data.length === 0 ? 'No data available' : 'No results match your search criteria'}
+              {currentSheetData.length === 0 ? 'No data available' : 'No results match your search criteria'}
             </div>
           )}
         </div>

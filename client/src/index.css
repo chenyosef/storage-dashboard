@@ -196,6 +196,44 @@ tr:hover {
   color: #6c757d;
 }
 
+.tabs {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.tab-list {
+  display: flex;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.tab {
+  background: none;
+  border: none;
+  padding: 15px 20px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6c757d;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.tab:hover {
+  background: #f8f9fa;
+  color: #495057;
+}
+
+.tab.active {
+  color: #007bff;
+  border-bottom-color: #007bff;
+  background: #f8f9fa;
+}
+
 @media (max-width: 768px) {
   .container {
     padding: 10px;
@@ -221,5 +259,20 @@ tr:hover {
   .btn {
     flex: 1;
     justify-content: center;
+  }
+  
+  .tab-list {
+    flex-direction: column;
+  }
+  
+  .tab {
+    text-align: left;
+    border-bottom: 1px solid #dee2e6;
+    border-right: none;
+  }
+  
+  .tab.active {
+    border-bottom: 1px solid #dee2e6;
+    border-left: 3px solid #007bff;
   }
 }

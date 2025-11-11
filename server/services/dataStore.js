@@ -3,7 +3,8 @@ const path = require('path');
 
 class DataStore {
   constructor() {
-    this.data = [];
+    this.data = {}; // Changed to object to store data by sheet name
+    this.sheetNames = [];
     this.lastSyncTime = null;
     this.dataFile = path.join(__dirname, '../data/storage-data.json');
     this.ensureDataDirectory();
@@ -22,13 +23,16 @@ class DataStore {
       if (fs.existsSync(this.dataFile)) {
         const fileContent = fs.readFileSync(this.dataFile, 'utf8');
         const storedData = JSON.parse(fileContent);
-        this.data = storedData.data || [];
+        this.data = storedData.data || {};
+        this.sheetNames = storedData.sheetNames || [];
         this.lastSyncTime = storedData.lastSyncTime || null;
-        console.log(`Loaded ${this.data.length} records from storage`);
+        const totalRecords = Object.values(this.data).reduce((sum, sheet) => sum + sheet.length, 0);
+        console.log(`Loaded ${totalRecords} records from ${this.sheetNames.length} sheets from storage`);
       }
     } catch (error) {
       console.error('Error loading data from storage:', error.message);
-      this.data = [];
+      this.data = {};
+      this.sheetNames = [];
       this.lastSyncTime = null;
     }
   }
@@ -37,6 +41,7 @@ class DataStore {
     try {
       const dataToSave = {
         data: this.data,
+        sheetNames: this.sheetNames,
         lastSyncTime: this.lastSyncTime,
         savedAt: new Date().toISOString()
       };
@@ -47,7 +52,15 @@ class DataStore {
   }
 
   updateData(newData) {
-    this.data = newData;
+    if (Array.isArray(newData)) {
+      // Legacy support for single sheet data
+      this.data = { 'Sheet1': newData };
+      this.sheetNames = ['Sheet1'];
+    } else {
+      // Multi-sheet data
+      this.data = newData;
+      this.sheetNames = Object.keys(newData);
+    }
     this.lastSyncTime = new Date().toISOString();
     this.saveData();
   }
@@ -56,42 +69,102 @@ class DataStore {
     return this.data;
   }
 
-  searchData(query) {
+  getSheetData(sheetName) {
+    return this.data[sheetName] || [];
+  }
+
+  getSheetNames() {
+    return this.sheetNames;
+  }
+
+  searchData(query, sheetName = null) {
     if (!query || query.trim() === '') {
-      return this.data;
+      return sheetName ? this.getSheetData(sheetName) : this.data;
     }
 
     const searchTerm = query.toLowerCase();
-    return this.data.filter(record => {
-      return Object.values(record).some(value => {
-        if (typeof value === 'string') {
-          return value.toLowerCase().includes(searchTerm);
-        }
-        return false;
-      });
-    });
-  }
-
-  filterData(filters) {
-    let filteredData = this.data;
-
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value && value.trim() !== '') {
-        filteredData = filteredData.filter(record => {
-          const recordValue = record[key];
-          if (typeof recordValue === 'string') {
-            return recordValue.toLowerCase().includes(value.toLowerCase());
+    
+    if (sheetName) {
+      // Search in specific sheet
+      const sheetData = this.getSheetData(sheetName);
+      return sheetData.filter(record => {
+        return Object.values(record).some(value => {
+          if (typeof value === 'string') {
+            return value.toLowerCase().includes(searchTerm);
           }
           return false;
         });
+      });
+    } else {
+      // Search across all sheets
+      const results = {};
+      for (const [name, sheetData] of Object.entries(this.data)) {
+        results[name] = sheetData.filter(record => {
+          return Object.values(record).some(value => {
+            if (typeof value === 'string') {
+              return value.toLowerCase().includes(searchTerm);
+            }
+            return false;
+          });
+        });
       }
-    });
-
-    return filteredData;
+      return results;
+    }
   }
 
-  getUniqueValues(field) {
-    const values = this.data
+  filterData(filters, sheetName = null) {
+    if (sheetName) {
+      // Filter specific sheet
+      let filteredData = this.getSheetData(sheetName);
+      
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value && value.trim() !== '') {
+          filteredData = filteredData.filter(record => {
+            const recordValue = record[key];
+            if (typeof recordValue === 'string') {
+              return recordValue.toLowerCase().includes(value.toLowerCase());
+            }
+            return false;
+          });
+        }
+      });
+
+      return filteredData;
+    } else {
+      // Filter all sheets
+      const results = {};
+      for (const [name, sheetData] of Object.entries(this.data)) {
+        let filteredData = sheetData;
+        
+        Object.entries(filters).forEach(([key, value]) => {
+          if (value && value.trim() !== '') {
+            filteredData = filteredData.filter(record => {
+              const recordValue = record[key];
+              if (typeof recordValue === 'string') {
+                return recordValue.toLowerCase().includes(value.toLowerCase());
+              }
+              return false;
+            });
+          }
+        });
+        
+        results[name] = filteredData;
+      }
+      
+      return results;
+    }
+  }
+
+  getUniqueValues(field, sheetName = null) {
+    let sourceData = [];
+    
+    if (sheetName) {
+      sourceData = this.getSheetData(sheetName);
+    } else {
+      sourceData = Object.values(this.data).flat();
+    }
+    
+    const values = sourceData
       .map(record => record[field])
       .filter(value => value && value.trim() !== '')
       .map(value => value.trim());
@@ -100,10 +173,21 @@ class DataStore {
   }
 
   getStats() {
+    const totalRecords = Object.values(this.data).reduce((sum, sheet) => sum + sheet.length, 0);
+    const allFields = new Set();
+    
+    Object.values(this.data).forEach(sheetData => {
+      if (sheetData.length > 0) {
+        Object.keys(sheetData[0]).forEach(field => allFields.add(field));
+      }
+    });
+
     return {
-      totalRecords: this.data.length,
+      totalRecords,
+      totalSheets: this.sheetNames.length,
+      sheetNames: this.sheetNames,
       lastSyncTime: this.lastSyncTime,
-      dataFields: this.data.length > 0 ? Object.keys(this.data[0]) : [],
+      dataFields: Array.from(allFields),
     };
   }
 

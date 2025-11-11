@@ -38,21 +38,26 @@ class SheetsService {
     }
   }
 
-  async fetchData() {
+  async fetchData(sheetName = null) {
     if (!this.sheets || !this.sheetId) {
       throw new Error('Google Sheets service not properly initialized');
     }
 
     try {
-      // Fetch data from the first sheet (you may need to adjust the range)
+      // If no specific sheet name provided, fetch from the first sheet
+      let range = 'A:Z';
+      if (sheetName) {
+        range = `'${sheetName}'!A:Z`;
+      }
+
       const response = await this.sheets.spreadsheets.values.get({
         spreadsheetId: this.sheetId,
-        range: 'A:Z', // Adjust range as needed
+        range: range,
       });
 
       const rows = response.data.values;
       if (!rows || rows.length === 0) {
-        console.log('No data found in spreadsheet');
+        console.log(`No data found in sheet: ${sheetName || 'default'}`);
         return [];
       }
 
@@ -71,15 +76,45 @@ class SheetsService {
         // Only add non-empty rows
         if (Object.values(record).some(value => value.trim() !== '')) {
           record.id = i; // Add unique ID
+          record.sheet_name = sheetName || 'Sheet1';
           record.last_updated = new Date().toISOString();
           data.push(record);
         }
       }
 
-      console.log(`Fetched ${data.length} records from Google Sheets`);
+      console.log(`Fetched ${data.length} records from sheet: ${sheetName || 'default'}`);
       return data;
     } catch (error) {
-      console.error('Error fetching data from Google Sheets:', error.message);
+      console.error(`Error fetching data from sheet ${sheetName || 'default'}:`, error.message);
+      throw error;
+    }
+  }
+
+  async fetchAllSheetsData() {
+    if (!this.sheets || !this.sheetId) {
+      throw new Error('Google Sheets service not properly initialized');
+    }
+
+    try {
+      // Get sheet info to find all sheet names
+      const sheetsInfo = await this.getSheetInfo();
+      const allData = {};
+
+      // Fetch data from each sheet
+      for (const sheet of sheetsInfo.sheets) {
+        try {
+          const data = await this.fetchData(sheet.title);
+          allData[sheet.title] = data;
+        } catch (error) {
+          console.warn(`Failed to fetch data from sheet '${sheet.title}':`, error.message);
+          allData[sheet.title] = [];
+        }
+      }
+
+      console.log(`Fetched data from ${Object.keys(allData).length} sheets`);
+      return allData;
+    } catch (error) {
+      console.error('Error fetching data from all sheets:', error.message);
       throw error;
     }
   }

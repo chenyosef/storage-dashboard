@@ -73,10 +73,11 @@ async function syncData() {
   
   try {
     console.log('Starting data sync...');
-    const data = await sheetsService.fetchData();
+    const data = await sheetsService.fetchAllSheetsData();
     dataStore.updateData(data);
-    syncMonitor.endSync(true, data.length);
-    console.log(`Sync completed. ${data.length} records updated.`);
+    const totalRecords = Object.values(data).reduce((sum, sheet) => sum + sheet.length, 0);
+    syncMonitor.endSync(true, totalRecords);
+    console.log(`Sync completed. ${totalRecords} records updated from ${Object.keys(data).length} sheets.`);
   } catch (error) {
     syncMonitor.endSync(false, 0, error);
     console.error('Sync failed:', error.message);
