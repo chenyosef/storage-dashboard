@@ -22,6 +22,10 @@ function App() {
   const [selectedVendor, setSelectedVendor] = useState('');
   const [statuses, setStatuses] = useState([]);
   const [selectedStatus, setSelectedStatus] = useState('');
+  
+  // Smart checkbox filters
+  const [availableFilters, setAvailableFilters] = useState({});
+  const [selectedFilters, setSelectedFilters] = useState({});
 
   useEffect(() => {
     fetchData();
@@ -29,7 +33,20 @@ function App() {
 
   useEffect(() => {
     applyFilters();
-  }, [data, activeSheet, searchQuery, selectedVendor, selectedStatus]);
+  }, [data, activeSheet, searchQuery, selectedVendor, selectedStatus, selectedFilters, availableFilters]);
+
+  useEffect(() => {
+    if (data && activeSheet) {
+      // Extract filter options when active sheet changes
+      let currentSheetData = [];
+      if (Array.isArray(data)) {
+        currentSheetData = data;
+      } else if (data && typeof data === 'object' && activeSheet) {
+        currentSheetData = data[activeSheet] || [];
+      }
+      extractFilterOptions(currentSheetData);
+    }
+  }, [data, activeSheet]);
 
   const fetchData = async () => {
     try {
@@ -65,6 +82,13 @@ function App() {
   };
 
   const extractFilterOptions = (data) => {
+    if (!data || data.length === 0) {
+      setAvailableFilters({});
+      setVendors([]);
+      setStatuses([]);
+      return;
+    }
+
     // Helper function to get string value from cell (handles both string and hyperlink objects)
     const getCellValue = (cell) => {
       if (cell && typeof cell === 'object' && cell.text) {
@@ -73,14 +97,52 @@ function App() {
       return cell;
     };
 
-    // Assuming common column names - adjust based on your actual sheet structure
-    const vendorField = data.length > 0 ? Object.keys(data[0]).find(key => 
-      key.toLowerCase().includes('vendor') || key.toLowerCase().includes('manufacturer')
-    ) : null;
+    // Smart field detection with priority keywords
+    const fieldMappings = {
+      partner: ['partner', 'vendor', 'manufacturer', 'company', 'provider'],
+      product: ['product', 'model', 'name', 'device', 'system'],
+      status: ['status', 'state', 'support', 'condition', 'phase']
+    };
+
+    const fields = Object.keys(data[0]);
+    const detectedFilters = {};
+
+    // Detect filter fields based on keywords
+    Object.entries(fieldMappings).forEach(([filterType, keywords]) => {
+      const field = fields.find(fieldName => 
+        keywords.some(keyword => fieldName.toLowerCase().includes(keyword))
+      );
+      
+      if (field) {
+        // Get unique values for this field
+        const uniqueValues = [...new Set(
+          data
+            .map(item => getCellValue(item[field]))
+            .filter(value => value && typeof value === 'string' && value.trim())
+            .map(value => value.trim())
+        )].sort();
+
+        // Only include fields that have multiple values and reasonable count
+        if (uniqueValues.length > 1 && uniqueValues.length <= 50) {
+          detectedFilters[filterType] = {
+            field: field,
+            label: field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+            values: uniqueValues
+          };
+        }
+      }
+    });
+
+    setAvailableFilters(detectedFilters);
+
+    // Legacy support for dropdowns (keep existing functionality)
+    const vendorField = fields.find(key => 
+      key.toLowerCase().includes('vendor') || key.toLowerCase().includes('manufacturer') || key.toLowerCase().includes('partner')
+    );
     
-    const statusField = data.length > 0 ? Object.keys(data[0]).find(key => 
+    const statusField = fields.find(key => 
       key.toLowerCase().includes('status') || key.toLowerCase().includes('support')
-    ) : null;
+    );
 
     if (vendorField) {
       const uniqueVendors = [...new Set(data.map(item => getCellValue(item[vendorField])).filter(v => v && v.trim()))];
@@ -129,7 +191,18 @@ function App() {
       return cell;
     };
 
-    // Apply vendor filter
+    // Apply checkbox filters
+    Object.entries(selectedFilters).forEach(([filterType, selectedValues]) => {
+      if (selectedValues.length > 0 && availableFilters[filterType]) {
+        const field = availableFilters[filterType].field;
+        filtered = filtered.filter(item => {
+          const cellValue = getCellValue(item[field]);
+          return selectedValues.includes(cellValue);
+        });
+      }
+    });
+
+    // Apply legacy dropdown filters (for backward compatibility)
     if (selectedVendor && filtered.length > 0) {
       const vendorField = Object.keys(filtered[0] || {}).find(key => 
         key.toLowerCase().includes('vendor') || key.toLowerCase().includes('manufacturer')
@@ -139,7 +212,6 @@ function App() {
       }
     }
 
-    // Apply status filter
     if (selectedStatus && filtered.length > 0) {
       const statusField = Object.keys(filtered[0] || {}).find(key => 
         key.toLowerCase().includes('status') || key.toLowerCase().includes('support')
@@ -175,11 +247,39 @@ function App() {
     setSearchQuery('');
     setSelectedVendor('');
     setSelectedStatus('');
+    setSelectedFilters({});
   };
 
   const handleSheetChange = (sheetName) => {
     setActiveSheet(sheetName);
     resetFilters();
+  };
+
+  // Handle checkbox filter changes
+  const handleFilterChange = (filterType, value, checked) => {
+    setSelectedFilters(prev => {
+      const current = prev[filterType] || [];
+      if (checked) {
+        return { ...prev, [filterType]: [...current, value] };
+      } else {
+        return { ...prev, [filterType]: current.filter(v => v !== value) };
+      }
+    });
+  };
+
+  // Check if all values for a filter are selected
+  const isAllSelected = (filterType) => {
+    if (!availableFilters[filterType]) return false;
+    const selected = selectedFilters[filterType] || [];
+    return selected.length === availableFilters[filterType].values.length;
+  };
+
+  // Toggle all values for a filter
+  const handleSelectAll = (filterType, selectAll) => {
+    setSelectedFilters(prev => ({
+      ...prev,
+      [filterType]: selectAll ? [...availableFilters[filterType].values] : []
+    }));
   };
 
   // Function to detect and render hyperlinks in text
@@ -313,43 +413,74 @@ function App() {
       <div className="main-content">
         {/* Left Sidebar */}
         <aside className="sidebar">
-          <div className="sidebar-section">
-            <h3 className="sidebar-title">Data Sources</h3>
-            {sheetNames.length > 1 && (
-              <div className="tab-navigation">
-                {sheetNames.map(sheetName => (
-                  <button
-                    key={sheetName}
-                    className={`sidebar-tab ${activeSheet === sheetName ? 'active' : ''}`}
-                    onClick={() => handleSheetChange(sheetName)}
-                  >
-                    {sheetName}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="sidebar-section">
-            <h3 className="sidebar-title">Search & Filters</h3>
-            
-            <div className="search-section">
-              <label htmlFor="search">Search</label>
-              <input
-                id="search"
-                type="text"
-                placeholder="Search vendors, models, or status..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="sidebar-input"
-              />
+          <div className="sidebar-content">
+            <div className="sidebar-section">
+              <h3 className="sidebar-title">Data Sources</h3>
+              {sheetNames.length > 1 && (
+                <div className="tab-navigation">
+                  {sheetNames.map(sheetName => (
+                    <button
+                      key={sheetName}
+                      className={`sidebar-tab ${activeSheet === sheetName ? 'active' : ''}`}
+                      onClick={() => handleSheetChange(sheetName)}
+                    >
+                      {sheetName}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {vendors.length > 0 && (
-              <div className="filter-section">
-                <label htmlFor="vendor-filter">Vendor</label>
+            <div className="sidebar-section">
+              <h3 className="sidebar-title">Search</h3>
+              <div className="search-section">
+                <input
+                  id="search"
+                  type="text"
+                  placeholder="Search across all fields..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="sidebar-input"
+                />
+              </div>
+            </div>
+
+            {/* Smart Checkbox Filters */}
+            {Object.entries(availableFilters).map(([filterType, filterConfig]) => (
+              <div key={filterType} className="sidebar-section">
+                <div className="filter-header">
+                  <h4 className="sidebar-title">{filterConfig.label}</h4>
+                  <div className="filter-controls">
+                    <button
+                      className="filter-toggle"
+                      onClick={() => handleSelectAll(filterType, !isAllSelected(filterType))}
+                      title={isAllSelected(filterType) ? "Deselect All" : "Select All"}
+                    >
+                      {isAllSelected(filterType) ? "None" : "All"}
+                    </button>
+                  </div>
+                </div>
+                <div className="checkbox-group">
+                  {filterConfig.values.map(value => (
+                    <label key={value} className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={(selectedFilters[filterType] || []).includes(value)}
+                        onChange={(e) => handleFilterChange(filterType, value, e.target.checked)}
+                        className="checkbox-input"
+                      />
+                      <span className="checkbox-text">{value}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            {/* Legacy dropdown filters for backward compatibility */}
+            {vendors.length > 0 && Object.keys(availableFilters).length === 0 && (
+              <div className="sidebar-section">
+                <h4 className="sidebar-title">Vendor</h4>
                 <select 
-                  id="vendor-filter"
                   value={selectedVendor} 
                   onChange={(e) => setSelectedVendor(e.target.value)}
                   className="sidebar-select"
@@ -362,11 +493,10 @@ function App() {
               </div>
             )}
 
-            {statuses.length > 0 && (
-              <div className="filter-section">
-                <label htmlFor="status-filter">Status</label>
+            {statuses.length > 0 && Object.keys(availableFilters).length === 0 && (
+              <div className="sidebar-section">
+                <h4 className="sidebar-title">Status</h4>
                 <select 
-                  id="status-filter"
                   value={selectedStatus} 
                   onChange={(e) => setSelectedStatus(e.target.value)}
                   className="sidebar-select"
@@ -379,24 +509,28 @@ function App() {
               </div>
             )}
 
-            {(selectedVendor || selectedStatus || searchQuery) && (
-              <button className="btn btn-outline reset-filters" onClick={resetFilters}>
-                Clear Filters
-              </button>
-            )}
-
-            <div className="filter-stats">
-              <p>Showing {filteredData.length} of {currentSheetData.length} records</p>
+            {/* Filter Actions */}
+            <div className="sidebar-section sidebar-actions">
+              {(Object.values(selectedFilters).some(arr => arr.length > 0) || selectedVendor || selectedStatus || searchQuery) && (
+                <button className="btn btn-outline reset-filters" onClick={resetFilters}>
+                  Clear All Filters
+                </button>
+              )}
+              
+              <div className="filter-stats">
+                <p>Showing {filteredData.length} of {currentSheetData.length} records</p>
+              </div>
             </div>
           </div>
         </aside>
 
         {/* Main Content */}
         <main className="content-area">
-          {error && <div className="alert alert-error">{error}</div>}
-          {message && <div className="alert alert-success">{message}</div>}
+          <div className="content-area-inner">
+            {error && <div className="alert alert-error">{error}</div>}
+            {message && <div className="alert alert-success">{message}</div>}
 
-          <div className="data-section">
+            <div className="data-section">
             <div className="section-header">
               <h2>
                 {activeSheet && sheetNames.length > 1 ? activeSheet : 'Storage Integration Status'}
@@ -432,6 +566,7 @@ function App() {
                   </p>
                 </div>
               )}
+            </div>
             </div>
           </div>
         </main>
