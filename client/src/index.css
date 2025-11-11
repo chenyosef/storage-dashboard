@@ -314,6 +314,8 @@ body {
   border-bottom: 1px solid var(--red-hat-gray-10);
   color: var(--red-hat-black);
   vertical-align: top;
+  word-wrap: break-word;
+  white-space: pre-wrap;
 }
 
 .data-table tr:hover {
@@ -322,6 +324,43 @@ body {
 
 .data-table tr:last-child td {
   border-bottom: none;
+}
+
+/* Cell Links */
+.cell-link {
+  color: var(--red-hat-red);
+  text-decoration: none;
+  font-weight: 500;
+  border-bottom: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.cell-link:hover {
+  color: var(--red-hat-dark-red);
+  border-bottom-color: var(--red-hat-red);
+  text-decoration: none;
+}
+
+.cell-link:visited {
+  color: var(--red-hat-red);
+}
+
+.cell-link:focus {
+  outline: 2px solid var(--red-hat-red);
+  outline-offset: 2px;
+  border-radius: var(--border-radius);
+}
+
+/* Raw URL links (auto-detected) have a slightly different style */
+.cell-link.raw-url {
+  font-family: var(--font-family-mono);
+  font-size: 13px;
+  font-weight: 400;
+  opacity: 0.9;
+}
+
+.cell-link.raw-url:hover {
+  opacity: 1;
 }
 
 /* Empty State */

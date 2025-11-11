@@ -50,16 +50,31 @@ class SheetsService {
         range = `'${sheetName}'!A:Z`;
       }
 
-      const response = await this.sheets.spreadsheets.values.get({
-        spreadsheetId: this.sheetId,
-        range: range,
-      });
+      // Fetch both values and formatted data to get hyperlinks
+      const [valuesResponse, formattedResponse] = await Promise.all([
+        this.sheets.spreadsheets.values.get({
+          spreadsheetId: this.sheetId,
+          range: range,
+        }),
+        this.sheets.spreadsheets.get({
+          spreadsheetId: this.sheetId,
+          ranges: [range],
+          includeGridData: true,
+        })
+      ]);
 
-      const rows = response.data.values;
+      const rows = valuesResponse.data.values;
       if (!rows || rows.length === 0) {
         console.log(`No data found in sheet: ${sheetName || 'default'}`);
         return [];
       }
+
+      // Get the sheet data with hyperlinks
+      const sheetData = formattedResponse.data.sheets.find(sheet => 
+        !sheetName || sheet.properties.title === sheetName
+      );
+      
+      const gridData = sheetData?.data?.[0]?.rowData || [];
 
       // Assume first row contains headers
       const headers = rows[0];
@@ -67,14 +82,37 @@ class SheetsService {
 
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
+        const formattedRow = gridData[i]?.values || [];
         const record = {};
         
         headers.forEach((header, index) => {
-          record[header.toLowerCase().replace(/\s+/g, '_')] = row[index] || '';
+          const cellValue = row[index] || '';
+          const formattedCell = formattedRow[index];
+          
+          // Check if this cell has a hyperlink
+          const hyperlink = formattedCell?.hyperlink;
+          
+          if (hyperlink && cellValue.trim()) {
+            // Store both the display text and the URL
+            record[header.toLowerCase().replace(/\s+/g, '_')] = {
+              text: cellValue,
+              url: hyperlink,
+              isLink: true
+            };
+          } else {
+            record[header.toLowerCase().replace(/\s+/g, '_')] = cellValue;
+          }
         });
 
         // Only add non-empty rows
-        if (Object.values(record).some(value => value.trim() !== '')) {
+        const hasContent = Object.values(record).some(value => {
+          if (typeof value === 'object' && value.text) {
+            return value.text.trim() !== '';
+          }
+          return typeof value === 'string' && value.trim() !== '';
+        });
+
+        if (hasContent) {
           record.id = i; // Add unique ID
           record.sheet_name = sheetName || 'Sheet1';
           record.last_updated = new Date().toISOString();

@@ -65,6 +65,14 @@ function App() {
   };
 
   const extractFilterOptions = (data) => {
+    // Helper function to get string value from cell (handles both string and hyperlink objects)
+    const getCellValue = (cell) => {
+      if (cell && typeof cell === 'object' && cell.text) {
+        return cell.text;
+      }
+      return cell;
+    };
+
     // Assuming common column names - adjust based on your actual sheet structure
     const vendorField = data.length > 0 ? Object.keys(data[0]).find(key => 
       key.toLowerCase().includes('vendor') || key.toLowerCase().includes('manufacturer')
@@ -75,12 +83,12 @@ function App() {
     ) : null;
 
     if (vendorField) {
-      const uniqueVendors = [...new Set(data.map(item => item[vendorField]).filter(v => v && v.trim()))];
+      const uniqueVendors = [...new Set(data.map(item => getCellValue(item[vendorField])).filter(v => v && v.trim()))];
       setVendors(uniqueVendors.sort());
     }
 
     if (statusField) {
-      const uniqueStatuses = [...new Set(data.map(item => item[statusField]).filter(s => s && s.trim()))];
+      const uniqueStatuses = [...new Set(data.map(item => getCellValue(item[statusField])).filter(s => s && s.trim()))];
       setStatuses(uniqueStatuses.sort());
     }
   };
@@ -101,11 +109,25 @@ function App() {
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(item =>
-        Object.values(item).some(value =>
-          value && value.toString().toLowerCase().includes(query)
-        )
+        Object.values(item).some(value => {
+          // Handle hyperlink objects
+          if (value && typeof value === 'object' && value.text) {
+            return value.text.toLowerCase().includes(query) || 
+                   (value.url && value.url.toLowerCase().includes(query));
+          }
+          // Handle regular string values
+          return value && value.toString().toLowerCase().includes(query);
+        })
       );
     }
+
+    // Helper function to get string value from cell (handles both string and hyperlink objects)
+    const getCellValue = (cell) => {
+      if (cell && typeof cell === 'object' && cell.text) {
+        return cell.text;
+      }
+      return cell;
+    };
 
     // Apply vendor filter
     if (selectedVendor && filtered.length > 0) {
@@ -113,7 +135,7 @@ function App() {
         key.toLowerCase().includes('vendor') || key.toLowerCase().includes('manufacturer')
       );
       if (vendorField) {
-        filtered = filtered.filter(item => item[vendorField] === selectedVendor);
+        filtered = filtered.filter(item => getCellValue(item[vendorField]) === selectedVendor);
       }
     }
 
@@ -123,7 +145,7 @@ function App() {
         key.toLowerCase().includes('status') || key.toLowerCase().includes('support')
       );
       if (statusField) {
-        filtered = filtered.filter(item => item[statusField] === selectedStatus);
+        filtered = filtered.filter(item => getCellValue(item[statusField]) === selectedStatus);
       }
     }
 
@@ -158,6 +180,77 @@ function App() {
   const handleSheetChange = (sheetName) => {
     setActiveSheet(sheetName);
     resetFilters();
+  };
+
+  // Function to detect and render hyperlinks in text
+  const renderCellContent = (content) => {
+    // Handle Google Sheets hyperlink objects
+    if (content && typeof content === 'object' && content.isLink) {
+      return (
+        <a
+          href={content.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="cell-link"
+          title={content.url}
+        >
+          {content.text}
+        </a>
+      );
+    }
+
+    // Handle regular text content
+    if (!content || typeof content !== 'string') {
+      return content || '-';
+    }
+
+    // Enhanced URL regex pattern that matches various URL formats
+    const urlRegex = /(https?:\/\/[^\s<>"{}|\\^`\[\]]+|www\.[^\s<>"{}|\\^`\[\]]+)/gi;
+    const parts = content.split(urlRegex);
+    
+    if (parts.length === 1) {
+      // No URLs found, return original content with line breaks preserved
+      return content.split('\n').map((line, index) => (
+        index === 0 ? line : [<br key={`br-${index}`} />, line]
+      )).flat();
+    }
+
+    // Process parts and create elements
+    return parts.map((part, index) => {
+      if (part.match(urlRegex)) {
+        // This is a raw URL
+        let url = part.trim();
+        let displayUrl = url;
+        
+        // Add protocol if missing for www links
+        if (url.toLowerCase().startsWith('www.')) {
+          url = 'https://' + url;
+        }
+        
+        // Truncate very long URLs for display
+        if (displayUrl.length > 60) {
+          displayUrl = displayUrl.substring(0, 57) + '...';
+        }
+        
+        return (
+          <a
+            key={index}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="cell-link raw-url"
+            title={part.trim()}
+          >
+            {displayUrl}
+          </a>
+        );
+      } else {
+        // Regular text - preserve line breaks
+        return part.split('\n').map((line, lineIndex) => (
+          lineIndex === 0 ? line : [<br key={`br-${index}-${lineIndex}`} />, line]
+        )).flat();
+      }
+    }).flat();
   };
 
   if (loading && (Array.isArray(data) ? data.length === 0 : Object.keys(data).length === 0)) {
@@ -326,7 +419,7 @@ function App() {
                     {filteredData.map((row, index) => (
                       <tr key={row.id || index}>
                         {columns.map(column => (
-                          <td key={column}>{row[column] || '-'}</td>
+                          <td key={column}>{renderCellContent(row[column])}</td>
                         ))}
                       </tr>
                     ))}
