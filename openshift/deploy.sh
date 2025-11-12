@@ -79,34 +79,25 @@ setup_namespace() {
     success "Using namespace: $NAMESPACE"
 }
 
-# Build and push container image
+# Build container image using OpenShift BuildConfig
 build_image() {
-    log "Building container image..."
-    
-    local build_cmd="podman"
-    if command -v docker &> /dev/null && ! command -v podman &> /dev/null; then
-        build_cmd="docker"
+    log "Building container image in OpenShift..."
+
+    # Check if BuildConfig exists, create if not
+    if ! oc get bc "$APP_NAME" -n "$NAMESPACE" &> /dev/null; then
+        log "Creating BuildConfig and ImageStream..."
+        oc new-build --name="$APP_NAME" --binary --strategy=docker -n "$NAMESPACE"
+        success "BuildConfig created"
+    else
+        log "Using existing BuildConfig"
     fi
-    
-    # Build the image using OpenShift-optimized Dockerfile
-    $build_cmd build -f "$PROJECT_ROOT/Dockerfile.openshift" -t "${APP_NAME}:${IMAGE_TAG}" "$PROJECT_ROOT"
-    
-    # Tag for OpenShift internal registry if available
-    if oc get route default-route -n openshift-image-registry &> /dev/null; then
-        local registry_url=$(oc get route default-route -n openshift-image-registry -o jsonpath='{.spec.host}')
-        local internal_image="${registry_url}/${NAMESPACE}/${APP_NAME}:${IMAGE_TAG}"
-        
-        log "Tagging image for OpenShift registry: $internal_image"
-        $build_cmd tag "${APP_NAME}:${IMAGE_TAG}" "$internal_image"
-        
-        log "Pushing image to OpenShift registry..."
-        $build_cmd push "$internal_image"
-        
-        # Update deployment manifest to use internal image
-        sed -i.bak "s|image: storage-dashboard:latest|image: $internal_image|g" "$SCRIPT_DIR/deployment.yaml"
-    fi
-    
-    success "Container image built and ready"
+
+    # Start build from local directory
+    log "Uploading source code from local directory..."
+    log "Building application in OpenShift (this may take several minutes)..."
+    oc start-build "$APP_NAME" --from-dir="$PROJECT_ROOT" --follow -n "$NAMESPACE"
+
+    success "Container image built successfully in OpenShift"
 }
 
 # Validate required environment variables
