@@ -239,10 +239,6 @@ function App() {
     }
   };
 
-  const handleExport = (format) => {
-    window.open(`${API_BASE}/storage/export/${format}`, '_blank');
-  };
-
   const resetFilters = () => {
     setSearchQuery('');
     setSelectedVendor('');
@@ -381,24 +377,12 @@ function App() {
             <p>OpenShift Virtualization Storage Compatibility</p>
           </div>
           <div className="header-actions">
-            <button 
-              className="btn btn-primary" 
+            <button
+              className="btn btn-primary"
               onClick={handleSync}
               disabled={loading}
             >
               {loading ? 'Syncing...' : 'Sync Now'}
-            </button>
-            <button 
-              className="btn btn-secondary" 
-              onClick={() => handleExport('csv')}
-            >
-              Export CSV
-            </button>
-            <button 
-              className="btn btn-secondary" 
-              onClick={() => handleExport('json')}
-            >
-              Export JSON
             </button>
           </div>
         </div>

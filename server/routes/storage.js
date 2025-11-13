@@ -155,12 +155,12 @@ router.post('/sync', async (req, res) => {
   try {
     const sheetsService = req.app.locals.sheetsService;
     const dataStore = req.app.locals.dataStore;
-    
+
     const data = await sheetsService.fetchAllSheetsData();
     dataStore.updateData(data);
-    
+
     const totalRecords = Object.values(data).reduce((sum, sheet) => sum + sheet.length, 0);
-    
+
     res.json({
       success: true,
       message: 'Data synced successfully',
@@ -168,62 +168,6 @@ router.post('/sync', async (req, res) => {
       sheetCount: Object.keys(data).length,
       syncTime: new Date().toISOString()
     });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-// Export data as JSON
-router.get('/export/json', (req, res) => {
-  try {
-    const dataStore = req.app.locals.dataStore;
-    const data = dataStore.getAllData();
-    
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Content-Disposition', 'attachment; filename=storage-data.json');
-    res.json(data);
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-// Export data as CSV
-router.get('/export/csv', (req, res) => {
-  try {
-    const dataStore = req.app.locals.dataStore;
-    const data = dataStore.getAllData();
-    
-    if (data.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'No data available for export'
-      });
-    }
-
-    // Generate CSV
-    const headers = Object.keys(data[0]);
-    const csvRows = [headers.join(',')];
-    
-    data.forEach(record => {
-      const values = headers.map(header => {
-        const value = record[header] || '';
-        // Escape quotes and wrap in quotes if contains comma
-        return value.includes(',') ? `"${value.replace(/"/g, '""')}"` : value;
-      });
-      csvRows.push(values.join(','));
-    });
-    
-    const csvContent = csvRows.join('\n');
-    
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename=storage-data.csv');
-    res.send(csvContent);
   } catch (error) {
     res.status(500).json({
       success: false,
