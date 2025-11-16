@@ -604,18 +604,18 @@ body {
 
 /* Cell Links */
 .cell-link {
-  color: var(--pf-v5-global--link-Color);
+  color: var(--pf-v5-global--link-Color) !important;
   text-decoration: none;
   transition: color 0.2s;
 }
 
 .cell-link:hover {
-  color: var(--pf-v5-global--link-Color--hover);
+  color: var(--pf-v5-global--link-Color--hover) !important;
   text-decoration: underline;
 }
 
 .cell-link:visited {
-  color: var(--pf-v5-global--palette--purple-500);
+  color: var(--pf-v5-global--link-Color) !important;
 }
 
 .cell-link:focus {
