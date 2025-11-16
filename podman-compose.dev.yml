@@ -2,10 +2,10 @@ version: '3.8'
 
 services:
   storage-dashboard:
-    image: localhost/storage-dashboard:latest
+    image: localhost/storage-dashboard:dev
     build:
       context: .
-      dockerfile: Dockerfile.minimal
+      dockerfile: Dockerfile.dev
     ports:
       - "3001:3001"
     dns:
@@ -17,12 +17,17 @@ services:
       - "accounts.google.com:142.250.185.106"
       - "sheets.googleapis.com:142.250.185.106"
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
       - PORT=3001
       - GOOGLE_SHEET_ID=${GOOGLE_SHEET_ID}
       - GOOGLE_CREDENTIALS_BASE64=${GOOGLE_CREDENTIALS_BASE64}
       - SYNC_INTERVAL_MINUTES=${SYNC_INTERVAL_MINUTES:-5}
     volumes:
+      # Mount server code for hot-reload (server changes don't need rebuild)
+      - ./server:/app/server:Z
+      # Persist node_modules in container (don't overwrite with host)
+      - /app/server/node_modules
+      # Persist data
       - storage-data:/app/data:Z
     restart: unless-stopped
     healthcheck:
@@ -33,21 +38,8 @@ services:
       start_period: 40s
     security_opt:
       - label=disable
-
-  # Optional: nginx reverse proxy for production
-  nginx:
-    image: docker.io/nginx:alpine
-    ports:
-      - "80:80"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro,Z
-    depends_on:
-      - storage-dashboard
-    restart: unless-stopped
-    profiles:
-      - production
-    security_opt:
-      - label=disable
+    # Use nodemon for auto-restart on file changes
+    command: ["npm", "run", "dev"]
 
 volumes:
   storage-data:

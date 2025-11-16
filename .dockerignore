@@ -1,0 +1,57 @@
+# Don't include these in build context (speeds up builds)
+node_modules
+.git
+.gitignore
+*.md
+!README.md
+.env
+.env.local
+.env.*.local
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Test and coverage
+coverage
+.nyc_output
+*.test.js
+__tests__
+
+# Build artifacts (will be rebuilt)
+client/build
+server/public
+
+# Docker/Podman
+.dockerignore
+Dockerfile*
+podman-compose*.yml
+docker-compose*.yml
+
+# Development
+dev.sh
+DEV.md
+CLAUDE.md
+
+# OpenShift deployment files (not needed in container)
+openshift/
+
+# Data directories
+data/
+server/data/
+
+# Temporary files
+tmp/
+temp/
+*.tmp

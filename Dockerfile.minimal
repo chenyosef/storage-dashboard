@@ -1,4 +1,4 @@
-# Minimal build - IPv4 only
+# Minimal build - IPv4 only with better layer caching
 FROM docker.io/node:18-alpine
 
 # Force IPv4-only networking by removing IPv6 support and adding hosts entries
@@ -15,17 +15,25 @@ RUN echo 'install_options="--no-ipv6"' >> /etc/apk/apk.conf && \
 RUN npm config set registry https://registry.npmjs.org/ && \
     npm config set fetch-timeout 300000
 
+# Install wget for healthcheck
+RUN apk add --no-cache wget
+
 WORKDIR /app
 
-# Copy all files
-COPY . .
-
-# Install dependencies with no custom configuration
+# Install client dependencies (cached unless package.json changes)
+COPY client/package*.json ./client/
 RUN cd client && npm install
+
+# Install server dependencies (cached unless package.json changes)
+COPY server/package*.json ./server/
 RUN cd server && npm install
 
-# Build client
+# Copy and build client (only rebuilds if client code changes)
+COPY client/ ./client/
 RUN cd client && npm run build
+
+# Copy server source code (only rebuilds if server code changes)
+COPY server/ ./server/
 
 # Copy built client to server
 RUN mkdir -p server/public && cp -r client/build/* server/public/

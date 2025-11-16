@@ -71,10 +71,14 @@ check_requirements() {
 build_image() {
     echo
     echo "Building application image..."
-    
+
+    # Clean up old/dangling images first
+    echo "Cleaning up old images..."
+    podman image prune -f --filter "dangling=true" >/dev/null 2>&1 || true
+
     # IPv4-only build flags with additional network configuration
     BUILD_FLAGS="--dns=8.8.8.8 --dns=8.8.4.4 --add-host=registry.npmjs.org:104.16.30.34"
-    
+
     # Try the minimal build first (most reliable) with IPv4 DNS
     if podman build $BUILD_FLAGS --tag $IMAGE_NAME -f Dockerfile.minimal . 2>/dev/null; then
         print_success "Image built successfully (minimal build with IPv4)"

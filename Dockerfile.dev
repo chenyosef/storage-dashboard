@@ -1,0 +1,60 @@
+# Development Dockerfile - builds client once, mounts server code
+FROM docker.io/node:18-alpine AS client-build
+
+# Force IPv4-only networking
+RUN echo 'install_options="--no-ipv6"' >> /etc/apk/apk.conf && \
+    sysctl -w net.ipv6.conf.all.disable_ipv6=1 2>/dev/null || true && \
+    sysctl -w net.ipv6.conf.default.disable_ipv6=1 2>/dev/null || true && \
+    echo '104.16.30.34 registry.npmjs.org' >> /etc/hosts && \
+    echo '104.16.31.34 registry.npmjs.org' >> /etc/hosts
+
+RUN npm config set registry https://registry.npmjs.org/ && \
+    npm config set fetch-timeout 300000
+
+WORKDIR /app/client
+COPY client/package*.json ./
+RUN npm install
+COPY client/ ./
+RUN npm run build
+
+# Runtime stage
+FROM docker.io/node:18-alpine
+
+# Force IPv4-only networking
+RUN echo 'install_options="--no-ipv6"' >> /etc/apk/apk.conf && \
+    sysctl -w net.ipv6.conf.all.disable_ipv6=1 2>/dev/null || true && \
+    sysctl -w net.ipv6.conf.default.disable_ipv6=1 2>/dev/null || true && \
+    echo '104.16.30.34 registry.npmjs.org' >> /etc/hosts && \
+    echo '104.16.31.34 registry.npmjs.org' >> /etc/hosts && \
+    echo '142.250.185.106 www.googleapis.com' >> /etc/hosts && \
+    echo '142.250.185.106 googleapis.com' >> /etc/hosts && \
+    echo '142.250.185.106 accounts.google.com' >> /etc/hosts
+
+RUN npm config set registry https://registry.npmjs.org/ && \
+    npm config set fetch-timeout 300000
+
+# Install wget for healthcheck
+RUN apk add --no-cache wget
+
+WORKDIR /app
+
+# Copy and install server dependencies (cached unless package.json changes)
+COPY server/package*.json ./server/
+RUN cd server && npm install
+
+# Copy built client files to server/public
+COPY --from=client-build /app/client/build ./server/public/
+
+# Create user and set permissions
+RUN addgroup -g 1001 nodejs && \
+    adduser -S -u 1001 -G nodejs nodejs && \
+    mkdir -p /app/data && \
+    chown -R nodejs:nodejs /app
+
+USER nodejs
+WORKDIR /app/server
+
+EXPOSE 3001
+
+# Default to development mode with nodemon (can be overridden)
+CMD ["npm", "run", "dev"]

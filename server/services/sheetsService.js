@@ -138,8 +138,14 @@ class SheetsService {
       const sheetsInfo = await this.getSheetInfo();
       const allData = {};
 
-      // Fetch data from each sheet
+      // Fetch data from each sheet (excluding WIP sheets)
       for (const sheet of sheetsInfo.sheets) {
+        // Skip sheets with "WIP" in the name
+        if (sheet.title.toLowerCase().includes('wip')) {
+          console.log(`Skipping WIP sheet: ${sheet.title}`);
+          continue;
+        }
+
         try {
           const data = await this.fetchData(sheet.title);
           allData[sheet.title] = data;

@@ -97,6 +97,12 @@ build_image() {
     log "Building application in OpenShift (this may take several minutes)..."
     oc start-build "$APP_NAME" --from-dir="$PROJECT_ROOT" --follow -n "$NAMESPACE"
 
+    # Get the new image digest to verify it's different
+    local new_image=$(oc get istag "$APP_NAME:latest" -n "$NAMESPACE" -o jsonpath='{.image.metadata.name}' 2>/dev/null || echo "")
+    if [[ -n "$new_image" ]]; then
+        log "New image built: ${new_image:0:12}..."
+    fi
+
     success "Container image built successfully in OpenShift"
 }
 
@@ -179,7 +185,7 @@ create_secret() {
 # Deploy application
 deploy_app() {
     log "Deploying application manifests..."
-    
+
     # Apply all manifests
     oc apply -f "$SCRIPT_DIR/serviceaccount.yaml"
     # PVC not needed - application stores data in memory from Google Sheets
@@ -187,21 +193,40 @@ deploy_app() {
     oc apply -f "$SCRIPT_DIR/service.yaml"
     oc apply -f "$SCRIPT_DIR/deployment.yaml"
     oc apply -f "$SCRIPT_DIR/route.yaml"
-    
+
     success "Application manifests deployed"
+
+    # Force rollout to pick up the newly built image
+    log "Triggering rollout to use new image..."
+    if oc get deployment "$APP_NAME" -n "$NAMESPACE" &> /dev/null; then
+        oc rollout restart deployment/"$APP_NAME" -n "$NAMESPACE"
+        success "Rollout triggered"
+    else
+        log "Deployment not found yet, it will use the latest image on first start"
+    fi
 }
 
 # Wait for deployment to be ready
 wait_for_deployment() {
     log "Waiting for deployment to be ready..."
-    
+
     oc rollout status deployment/$APP_NAME --timeout=300s
-    
+
+    # Verify the running image
+    local running_image=$(oc get pod -l app=storage-dashboard -n "$NAMESPACE" -o jsonpath='{.items[0].status.containerStatuses[0].imageID}' 2>/dev/null | sed 's/.*@sha256://' | cut -c1-12)
+    if [[ -n "$running_image" ]]; then
+        log "Running image: ${running_image}..."
+    fi
+
     # Get the route URL
     local route_url=$(oc get route $APP_NAME -o jsonpath='{.spec.host}')
-    
+
     success "Deployment completed successfully!"
     success "Application is available at: https://$route_url"
+
+    # Show recent logs to verify WIP filtering
+    log "Recent application logs (checking for WIP filter):"
+    oc logs deployment/$APP_NAME -n "$NAMESPACE" --tail=20 | grep -i "skipping\|fetched.*sheet" || log "No sync messages yet, check logs with: oc logs deployment/$APP_NAME -n $NAMESPACE"
 }
 
 # Cleanup function
