@@ -278,8 +278,35 @@ function App() {
     }));
   };
 
+  // Helper function to determine status color based on value
+  const getStatusColor = (value) => {
+    if (!value || typeof value !== 'string') return null;
+
+    const lowerValue = value.toLowerCase().trim();
+
+    // Green statuses
+    const greenKeywords = ['green', 'yes', 'active', 'supported', 'available', 'enabled', 'pass', 'passed', 'success', 'completed', 'approved', 'ga', 'stable'];
+    if (greenKeywords.some(keyword => lowerValue.includes(keyword))) {
+      return 'status-green';
+    }
+
+    // Red statuses
+    const redKeywords = ['red', 'no', 'not supported', 'unsupported', 'unavailable', 'disabled', 'fail', 'failed', 'error', 'rejected', 'deprecated', 'eol', 'end of life'];
+    if (redKeywords.some(keyword => lowerValue.includes(keyword))) {
+      return 'status-red';
+    }
+
+    // Yellow statuses
+    const yellowKeywords = ['yellow', 'warning', 'pending', 'in progress', 'partial', 'limited', 'beta', 'preview', 'tech preview', 'experimental', 'caution'];
+    if (yellowKeywords.some(keyword => lowerValue.includes(keyword))) {
+      return 'status-yellow';
+    }
+
+    return null;
+  };
+
   // Function to detect and render hyperlinks in text
-  const renderCellContent = (content) => {
+  const renderCellContent = (content, columnName = '') => {
     // Handle Google Sheets hyperlink objects
     if (content && typeof content === 'object' && content.isLink) {
       return (
@@ -300,15 +327,26 @@ function App() {
       return content || '-';
     }
 
+    // Check if this is a status field and apply color
+    const isStatusField = columnName.toLowerCase().includes('status') ||
+                          columnName.toLowerCase().includes('support');
+    const statusColor = isStatusField ? getStatusColor(content) : null;
+
     // Enhanced URL regex pattern that matches various URL formats
     const urlRegex = /(https?:\/\/[^\s<>"{}|\\^`\[\]]+|www\.[^\s<>"{}|\\^`\[\]]+)/gi;
     const parts = content.split(urlRegex);
-    
+
     if (parts.length === 1) {
       // No URLs found, return original content with line breaks preserved
-      return content.split('\n').map((line, index) => (
+      const textContent = content.split('\n').map((line, index) => (
         index === 0 ? line : [<br key={`br-${index}`} />, line]
       )).flat();
+
+      // Wrap in status badge if this is a status field
+      if (statusColor) {
+        return <span className={`status-badge ${statusColor}`}>{textContent}</span>;
+      }
+      return textContent;
     }
 
     // Process parts and create elements
@@ -537,7 +575,7 @@ function App() {
                     {filteredData.map((row, index) => (
                       <tr key={row.id || index}>
                         {columns.map(column => (
-                          <td key={column}>{renderCellContent(row[column])}</td>
+                          <td key={column}>{renderCellContent(row[column], column)}</td>
                         ))}
                       </tr>
                     ))}
