@@ -869,3 +869,148 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Insights Summary Cards - PatternFly Aligned */
+.insights-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--pf-v5-global--spacer--md);
+  padding: var(--pf-v5-global--spacer--lg);
+  background: var(--pf-v5-global--BackgroundColor--200);
+  border-bottom: var(--pf-v5-global--BorderWidth--sm) solid var(--pf-v5-global--BorderColor--100);
+}
+
+.insight-card {
+  background: var(--pf-v5-global--BackgroundColor--100);
+  border: var(--pf-v5-global--BorderWidth--sm) solid var(--pf-v5-global--BorderColor--100);
+  border-radius: var(--pf-v5-global--BorderRadius--sm);
+  overflow: hidden;
+  box-shadow: var(--pf-v5-global--BoxShadow--sm);
+  transition: all 0.2s;
+}
+
+.insight-card:hover {
+  box-shadow: var(--pf-v5-global--BoxShadow--md);
+  transform: translateY(-2px);
+}
+
+.insight-header {
+  padding: var(--pf-v5-global--spacer--sm) var(--pf-v5-global--spacer--md);
+  background: var(--pf-v5-global--BackgroundColor--200);
+  font-size: var(--pf-v5-global--FontSize--sm);
+  font-weight: var(--pf-v5-global--FontWeight--bold);
+  color: var(--pf-v5-global--Color--100);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: var(--pf-v5-global--BorderWidth--sm) solid var(--pf-v5-global--BorderColor--100);
+}
+
+.insight-stats {
+  display: flex;
+  justify-content: space-around;
+  padding: var(--pf-v5-global--spacer--lg);
+  gap: var(--pf-v5-global--spacer--sm);
+}
+
+.insight-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  flex: 1;
+}
+
+.insight-value {
+  font-size: var(--pf-v5-global--FontSize--3xl);
+  font-weight: var(--pf-v5-global--FontWeight--bold);
+  font-family: var(--pf-v5-global--FontFamily--heading);
+  color: var(--pf-v5-global--Color--100);
+  line-height: 1.2;
+}
+
+.insight-value.insight-percentage {
+  color: var(--pf-v5-global--primary-color--100);
+}
+
+.insight-stat.stat-green .insight-value {
+  color: var(--pf-v5-global--success-color--100);
+}
+
+.insight-stat.stat-yellow .insight-value {
+  color: var(--pf-v5-global--warning-color--100);
+}
+
+.insight-stat.stat-red .insight-value {
+  color: var(--pf-v5-global--danger-color--100);
+}
+
+.insight-label {
+  font-size: var(--pf-v5-global--FontSize--xs);
+  color: var(--pf-v5-global--Color--200);
+  margin-top: var(--pf-v5-global--spacer--xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.insight-list {
+  padding: var(--pf-v5-global--spacer--md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--pf-v5-global--spacer--sm);
+}
+
+.insight-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--pf-v5-global--spacer--sm) var(--pf-v5-global--spacer--md);
+  background: var(--pf-v5-global--BackgroundColor--200);
+  border-radius: var(--pf-v5-global--BorderRadius--sm);
+  transition: background 0.2s;
+}
+
+.insight-item:hover {
+  background: var(--pf-v5-global--palette--blue-50);
+}
+
+.insight-partner {
+  font-size: var(--pf-v5-global--FontSize--md);
+  color: var(--pf-v5-global--Color--100);
+  font-weight: var(--pf-v5-global--FontWeight--normal);
+}
+
+.insight-count {
+  font-size: var(--pf-v5-global--FontSize--sm);
+  color: var(--pf-v5-global--Color--200);
+  font-weight: var(--pf-v5-global--FontWeight--bold);
+  background: var(--pf-v5-global--BackgroundColor--100);
+  padding: 0.125rem 0.5rem;
+  border-radius: 3rem;
+  border: var(--pf-v5-global--BorderWidth--sm) solid var(--pf-v5-global--BorderColor--100);
+}
+
+/* Responsive Insights */
+@media (max-width: 768px) {
+  .insights-container {
+    grid-template-columns: 1fr;
+    padding: var(--pf-v5-global--spacer--md);
+  }
+
+  .insight-stats {
+    padding: var(--pf-v5-global--spacer--md);
+  }
+
+  .insight-value {
+    font-size: var(--pf-v5-global--FontSize--2xl);
+  }
+}
+
+@media (max-width: 480px) {
+  .insights-container {
+    padding: var(--pf-v5-global--spacer--sm);
+  }
+
+  .insight-value {
+    font-size: var(--pf-v5-global--FontSize--xl);
+  }
+}

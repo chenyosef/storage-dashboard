@@ -387,6 +387,56 @@ function App() {
     }).flat();
   };
 
+  // Calculate insights from filtered data
+  const calculateInsights = () => {
+    if (!filteredData || filteredData.length === 0) {
+      return null;
+    }
+
+    const insights = {
+      total: filteredData.length,
+      statusCounts: { green: 0, yellow: 0, red: 0 },
+      partnerCounts: {},
+      csiCertified: 0,
+      csiTotal: 0
+    };
+
+    // Helper to get cell value
+    const getCellValue = (cell) => {
+      if (cell && typeof cell === 'object' && cell.text) {
+        return cell.text;
+      }
+      return cell;
+    };
+
+    filteredData.forEach(row => {
+      // Count status distribution
+      if (row.status) {
+        const status = getCellValue(row.status).toLowerCase();
+        if (status.includes('green')) insights.statusCounts.green++;
+        else if (status.includes('yellow')) insights.statusCounts.yellow++;
+        else if (status.includes('red')) insights.statusCounts.red++;
+      }
+
+      // Count products by partner
+      if (row.partner) {
+        const partner = getCellValue(row.partner);
+        insights.partnerCounts[partner] = (insights.partnerCounts[partner] || 0) + 1;
+      }
+
+      // Count CSI certified
+      if (row.csi_certified !== undefined) {
+        insights.csiTotal++;
+        const csiValue = getCellValue(row.csi_certified);
+        if (csiValue && csiValue.toLowerCase().includes('yes')) {
+          insights.csiCertified++;
+        }
+      }
+    });
+
+    return insights;
+  };
+
   if (loading && (Array.isArray(data) ? data.length === 0 : Object.keys(data).length === 0)) {
     return (
       <div className="container">
@@ -558,6 +608,60 @@ function App() {
                 {activeSheet && sheetNames.length > 1 ? activeSheet : 'Storage Integration Status'}
               </h2>
             </div>
+
+            {/* Insights Summary - Only for sheets with "status" in name */}
+            {(() => {
+              // Only show insights for sheets with "status" in the name
+              if (!activeSheet || !activeSheet.toLowerCase().includes('status')) {
+                return null;
+              }
+
+              const insights = calculateInsights();
+              if (!insights) return null;
+
+              const totalStatus = insights.statusCounts.green + insights.statusCounts.yellow + insights.statusCounts.red;
+              const csiPercentage = insights.csiTotal > 0
+                ? Math.round((insights.csiCertified / insights.csiTotal) * 100)
+                : null;
+
+              return (
+                <div className="insights-container">
+                  {/* Status Overview */}
+                  {totalStatus > 0 && (
+                    <div className="insight-card">
+                      <div className="insight-header">Compatibility Status</div>
+                      <div className="insight-stats">
+                        <div className="insight-stat stat-green">
+                          <span className="insight-value">{insights.statusCounts.green}</span>
+                          <span className="insight-label">Ready</span>
+                        </div>
+                        <div className="insight-stat stat-yellow">
+                          <span className="insight-value">{insights.statusCounts.yellow}</span>
+                          <span className="insight-label">In Progress</span>
+                        </div>
+                        <div className="insight-stat stat-red">
+                          <span className="insight-value">{insights.statusCounts.red}</span>
+                          <span className="insight-label">Blocked</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* CSI Certification */}
+                  {csiPercentage !== null && (
+                    <div className="insight-card">
+                      <div className="insight-header">CSI Certification</div>
+                      <div className="insight-stats">
+                        <div className="insight-stat">
+                          <span className="insight-value insight-percentage">{csiPercentage}%</span>
+                          <span className="insight-label">{insights.csiCertified} of {insights.csiTotal} certified</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             <div className="table-container">
               {filteredData.length > 0 ? (
