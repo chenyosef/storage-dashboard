@@ -88,10 +88,10 @@ class SheetsService {
         headers.forEach((header, index) => {
           const cellValue = row[index] || '';
           const formattedCell = formattedRow[index];
-          
-          // Check if this cell has a hyperlink
+
+          // Check if entire cell has a hyperlink
           const hyperlink = formattedCell?.hyperlink;
-          
+
           if (hyperlink && cellValue.trim()) {
             // Store both the display text and the URL
             record[header.toLowerCase().replace(/\s+/g, '_')] = {
@@ -99,6 +99,44 @@ class SheetsService {
               url: hyperlink,
               isLink: true
             };
+          } else if (formattedCell?.textFormatRuns && formattedCell.textFormatRuns.length > 0) {
+            // Handle rich text with partial hyperlinks
+            const textRuns = formattedCell.textFormatRuns;
+            const richTextParts = [];
+
+            for (let runIndex = 0; runIndex < textRuns.length; runIndex++) {
+              const run = textRuns[runIndex];
+              const startIndex = run.startIndex || 0;
+              const nextRun = textRuns[runIndex + 1];
+              const endIndex = nextRun ? nextRun.startIndex : cellValue.length;
+              const text = cellValue.substring(startIndex, endIndex);
+
+              if (run.format?.link?.uri) {
+                // This part of the text is a hyperlink
+                richTextParts.push({
+                  text: text,
+                  url: run.format.link.uri,
+                  isLink: true
+                });
+              } else {
+                // This part is plain text
+                richTextParts.push({
+                  text: text,
+                  isLink: false
+                });
+              }
+            }
+
+            // If we found any links, store as rich text array
+            if (richTextParts.some(part => part.isLink)) {
+              record[header.toLowerCase().replace(/\s+/g, '_')] = {
+                richText: richTextParts,
+                isRichText: true
+              };
+            } else {
+              // No links found in runs, just store as plain text
+              record[header.toLowerCase().replace(/\s+/g, '_')] = cellValue;
+            }
           } else {
             record[header.toLowerCase().replace(/\s+/g, '_')] = cellValue;
           }

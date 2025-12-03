@@ -89,10 +89,16 @@ function App() {
       return;
     }
 
-    // Helper function to get string value from cell (handles both string and hyperlink objects)
+    // Helper function to get string value from cell (handles rich text, hyperlinks, and strings)
     const getCellValue = (cell) => {
-      if (cell && typeof cell === 'object' && cell.text) {
-        return cell.text;
+      if (cell && typeof cell === 'object') {
+        if (cell.isRichText && cell.richText) {
+          // Combine all rich text parts into one string
+          return cell.richText.map(part => part.text).join('');
+        }
+        if (cell.text) {
+          return cell.text;
+        }
       }
       return cell;
     };
@@ -172,9 +178,16 @@ function App() {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(item =>
         Object.values(item).some(value => {
+          // Handle rich text objects
+          if (value && typeof value === 'object' && value.isRichText && value.richText) {
+            return value.richText.some(part =>
+              part.text.toLowerCase().includes(query) ||
+              (part.url && part.url.toLowerCase().includes(query))
+            );
+          }
           // Handle hyperlink objects
           if (value && typeof value === 'object' && value.text) {
-            return value.text.toLowerCase().includes(query) || 
+            return value.text.toLowerCase().includes(query) ||
                    (value.url && value.url.toLowerCase().includes(query));
           }
           // Handle regular string values
@@ -183,10 +196,16 @@ function App() {
       );
     }
 
-    // Helper function to get string value from cell (handles both string and hyperlink objects)
+    // Helper function to get string value from cell (handles rich text, hyperlinks, and strings)
     const getCellValue = (cell) => {
-      if (cell && typeof cell === 'object' && cell.text) {
-        return cell.text;
+      if (cell && typeof cell === 'object') {
+        if (cell.isRichText && cell.richText) {
+          // Combine all rich text parts into one string
+          return cell.richText.map(part => part.text).join('');
+        }
+        if (cell.text) {
+          return cell.text;
+        }
       }
       return cell;
     };
@@ -307,7 +326,33 @@ function App() {
 
   // Function to detect and render hyperlinks in text
   const renderCellContent = (content, columnName = '') => {
-    // Handle Google Sheets hyperlink objects
+    // Handle rich text with partial hyperlinks
+    if (content && typeof content === 'object' && content.isRichText && content.richText) {
+      return content.richText.map((part, index) => {
+        if (part.isLink && part.url) {
+          return (
+            <a
+              key={index}
+              href={part.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="cell-link"
+              title={part.url}
+            >
+              {part.text}
+            </a>
+          );
+        } else {
+          // Plain text part - preserve line breaks
+          const textParts = part.text.split('\n').map((line, lineIndex) => (
+            lineIndex === 0 ? line : [<br key={`br-${index}-${lineIndex}`} />, line]
+          )).flat();
+          return <span key={index}>{textParts}</span>;
+        }
+      });
+    }
+
+    // Handle Google Sheets hyperlink objects (entire cell is a link)
     if (content && typeof content === 'object' && content.isLink) {
       return (
         <a
@@ -403,8 +448,14 @@ function App() {
 
     // Helper to get cell value
     const getCellValue = (cell) => {
-      if (cell && typeof cell === 'object' && cell.text) {
-        return cell.text;
+      if (cell && typeof cell === 'object') {
+        if (cell.isRichText && cell.richText) {
+          // Combine all rich text parts into one string
+          return cell.richText.map(part => part.text).join('');
+        }
+        if (cell.text) {
+          return cell.text;
+        }
       }
       return cell;
     };
