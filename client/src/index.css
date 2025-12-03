@@ -185,6 +185,37 @@ body {
   border-top: var(--pf-v5-global--BorderWidth--sm) solid var(--pf-v5-global--BorderColor--100);
 }
 
+/* Warning Banner - Confidential/Internal Use */
+.warning-banner {
+  background: var(--pf-v5-global--palette--orange-50);
+  border-bottom: var(--pf-v5-global--BorderWidth--lg) solid var(--pf-v5-global--palette--orange-200);
+  padding: var(--pf-v5-global--spacer--md) var(--pf-v5-global--spacer--lg);
+}
+
+.warning-content {
+  display: flex;
+  align-items: center;
+  gap: var(--pf-v5-global--spacer--sm);
+  max-width: 1400px;
+  margin: 0 auto;
+  color: var(--pf-v5-global--palette--orange-700);
+  font-size: var(--pf-v5-global--FontSize--sm);
+  font-weight: var(--pf-v5-global--FontWeight--normal);
+  line-height: var(--pf-v5-global--LineHeight--md);
+}
+
+.warning-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  color: var(--pf-v5-global--palette--orange-400);
+}
+
+.warning-content strong {
+  font-weight: var(--pf-v5-global--FontWeight--bold);
+  color: var(--pf-v5-global--palette--orange-800);
+}
+
 /* PatternFly Button Styles */
 .btn {
   display: inline-flex;
