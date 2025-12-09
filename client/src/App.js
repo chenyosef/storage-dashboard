@@ -29,7 +29,17 @@ function App() {
 
   useEffect(() => {
     fetchData();
+    trackVisit();
   }, []);
+
+  const trackVisit = async () => {
+    try {
+      await axios.post(`${API_BASE}/track/visit`);
+    } catch (error) {
+      // Silently fail - visitor tracking shouldn't affect user experience
+      console.debug('Visitor tracking failed:', error.message);
+    }
+  };
 
   useEffect(() => {
     applyFilters();

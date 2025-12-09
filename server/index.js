@@ -7,6 +7,7 @@ require('dotenv').config();
 const { SheetsService } = require('./services/sheetsService');
 const { DataStore } = require('./services/dataStore');
 const { SyncMonitor } = require('./services/syncMonitor');
+const { VisitorTracker } = require('./services/visitorTracker');
 const storageRoutes = require('./routes/storage');
 
 const app = express();
@@ -23,11 +24,13 @@ app.use(express.static(path.join(__dirname, 'public')));
 const dataStore = new DataStore();
 const sheetsService = new SheetsService();
 const syncMonitor = new SyncMonitor();
+const visitorTracker = new VisitorTracker();
 
 // Make services available to routes
 app.locals.dataStore = dataStore;
 app.locals.sheetsService = sheetsService;
 app.locals.syncMonitor = syncMonitor;
+app.locals.visitorTracker = visitorTracker;
 
 // API Routes
 app.use('/api/storage', storageRoutes);
@@ -52,6 +55,27 @@ app.get('/api/sync/stats', (req, res) => {
     success: true,
     stats: syncMonitor.getStats()
   });
+});
+
+// Visitor tracking endpoints
+app.post('/api/track/visit', (req, res) => {
+  try {
+    const result = visitorTracker.trackVisit(req);
+    res.json({ success: true, tracked: true });
+  } catch (error) {
+    console.error('Error tracking visit:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/track/stats', (req, res) => {
+  try {
+    const stats = visitorTracker.getStats();
+    res.json({ success: true, stats });
+  } catch (error) {
+    console.error('Error getting visitor stats:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 app.get('/api/sync/history', (req, res) => {
