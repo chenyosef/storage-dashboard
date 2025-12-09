@@ -188,8 +188,8 @@ deploy_app() {
 
     # Apply all manifests
     oc apply -f "$SCRIPT_DIR/serviceaccount.yaml"
-    # PVC not needed - application stores data in memory from Google Sheets
-    # oc apply -f "$SCRIPT_DIR/pvc.yaml"
+    # Apply PVC for visitor tracking data persistence
+    oc apply -f "$SCRIPT_DIR/persistentvolumeclaim.yaml"
     oc apply -f "$SCRIPT_DIR/service.yaml"
     oc apply -f "$SCRIPT_DIR/deployment.yaml"
     oc apply -f "$SCRIPT_DIR/route.yaml"

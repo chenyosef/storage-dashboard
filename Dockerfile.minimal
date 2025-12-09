@@ -15,8 +15,8 @@ RUN echo 'install_options="--no-ipv6"' >> /etc/apk/apk.conf && \
 RUN npm config set registry https://registry.npmjs.org/ && \
     npm config set fetch-timeout 300000
 
-# Install wget for healthcheck
-RUN apk add --no-cache wget
+# Install wget for healthcheck and su-exec for permission fixing
+RUN apk add --no-cache wget su-exec
 
 WORKDIR /app
 
@@ -44,9 +44,14 @@ RUN addgroup -g 1001 nodejs && \
     mkdir -p server/data && \
     chown -R nodejs:nodejs /app
 
-USER nodejs
+# Copy and set entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Start as root to fix permissions, entrypoint will switch to nodejs user
 WORKDIR /app/server
 
 EXPOSE 3001
 
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["node", "index.js"]

@@ -28,7 +28,7 @@ services:
       # Persist node_modules in container (don't overwrite with host)
       - /app/server/node_modules
       # Persist data
-      - storage-data:/app/data:Z
+      - storage-data:/app/server/data:Z
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/api/health"]

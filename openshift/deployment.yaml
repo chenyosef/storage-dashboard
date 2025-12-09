@@ -89,4 +89,11 @@ spec:
           periodSeconds: 10
           timeoutSeconds: 5
           failureThreshold: 30
+        volumeMounts:
+        - name: data-storage
+          mountPath: /app/server/data
+      volumes:
+      - name: data-storage
+        persistentVolumeClaim:
+          claimName: storage-dashboard-data
       restartPolicy: Always
