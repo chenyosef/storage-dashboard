@@ -1,13 +1,12 @@
 # Storage Integration Dashboard
 
-A web-based dashboard for tracking OpenShift Virtualization storage integration status across major storage vendors. The dashboard automatically syncs with Google Sheets and provides search, filtering, and export capabilities for sales teams.
+A web-based dashboard for tracking OpenShift Virtualization storage integration status across major storage vendors. The dashboard automatically syncs with Google Sheets and provides search and filtering capabilities for sales teams.
 
 ## Features
 
 - **Automatic Google Sheets Sync**: Pulls data from Google Sheets every 5 minutes (configurable)
 - **Real-time Search**: Search across all vendors, models, and statuses
 - **Advanced Filtering**: Filter by vendor, status, or any field
-- **Export Capabilities**: Export data as CSV or JSON
 - **Mobile Responsive**: Works on desktop, tablet, and mobile devices
 - **Health Monitoring**: Built-in sync monitoring and health checks
 - **Podman Ready**: Containerized for easy deployment with Podman
@@ -112,8 +111,6 @@ Example structure:
 - `GET /api/storage/search?q=term` - Search storage data
 - `POST /api/storage/filter` - Filter data with custom criteria
 - `POST /api/storage/sync` - Force manual sync
-- `GET /api/storage/export/csv` - Export as CSV
-- `GET /api/storage/export/json` - Export as JSON
 
 ### Monitoring
 - `GET /api/health` - Health check and sync status

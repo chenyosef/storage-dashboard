@@ -266,7 +266,6 @@ curl http://localhost:3001/api/storage
 
 1. **Provide URL**: Share the dashboard URL with sales team
 2. **Mobile Access**: Ensure mobile browsers work correctly
-3. **Export Training**: Show how to export CSV/JSON for customer presentations
 
 ### 6.2 Data Management
 
