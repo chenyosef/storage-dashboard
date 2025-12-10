@@ -387,9 +387,13 @@ function App() {
                           columnName.toLowerCase().includes('support');
     const statusColor = isStatusField ? getStatusColor(content) : null;
 
-    // Enhanced URL regex pattern that matches various URL formats
+    // Enhanced URL and email regex patterns
     const urlRegex = /(https?:\/\/[^\s<>"{}|\\^`\[\]]+|www\.[^\s<>"{}|\\^`\[\]]+)/gi;
-    const parts = content.split(urlRegex);
+    const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi;
+
+    // Combine URL and email detection
+    const combinedRegex = /(https?:\/\/[^\s<>"{}|\\^`\[\]]+|www\.[^\s<>"{}|\\^`\[\]]+|[a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi;
+    const parts = content.split(combinedRegex);
 
     if (parts.length === 1) {
       // No URLs found, return original content with line breaks preserved
@@ -406,11 +410,25 @@ function App() {
 
     // Process parts and create elements
     return parts.map((part, index) => {
+      // Check if this part is an email
+      if (part.match(emailRegex)) {
+        return (
+          <a
+            key={index}
+            href={`mailto:${part.trim()}`}
+            className="cell-link email-link"
+            title={`Email ${part.trim()}`}
+          >
+            {part.trim()}
+          </a>
+        );
+      }
+
       if (part.match(urlRegex)) {
         // This is a raw URL
         let url = part.trim();
         let displayUrl = url;
-        
+
         // Add protocol if missing for www links
         if (url.toLowerCase().startsWith('www.')) {
           url = 'https://' + url;

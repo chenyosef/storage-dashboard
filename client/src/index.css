@@ -663,6 +663,11 @@ body {
   border-radius: var(--pf-v5-global--BorderRadius--sm);
 }
 
+.cell-link.email-link {
+  font-style: normal;
+  font-weight: 500;
+}
+
 /* Empty State */
 .empty-state {
   padding: var(--pf-v5-global--spacer--2xl);
