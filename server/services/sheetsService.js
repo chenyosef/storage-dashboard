@@ -84,10 +84,14 @@ class SheetsService {
         const row = rows[i];
         const formattedRow = gridData[i]?.values || [];
         const record = {};
-        
+
         headers.forEach((header, index) => {
           const cellValue = row[index] || '';
           const formattedCell = formattedRow[index];
+
+          // Extract comment/note if present
+          // Google Sheets API stores comments in the 'note' field of the cell
+          const comment = formattedCell?.note;
 
           // Check if entire cell has a hyperlink
           const hyperlink = formattedCell?.hyperlink;
@@ -97,7 +101,8 @@ class SheetsService {
             record[header.toLowerCase().replace(/\s+/g, '_')] = {
               text: cellValue,
               url: hyperlink,
-              isLink: true
+              isLink: true,
+              comment: comment || null
             };
           } else if (formattedCell?.textFormatRuns && formattedCell.textFormatRuns.length > 0) {
             // Handle rich text with partial hyperlinks
@@ -131,13 +136,29 @@ class SheetsService {
             if (richTextParts.some(part => part.isLink)) {
               record[header.toLowerCase().replace(/\s+/g, '_')] = {
                 richText: richTextParts,
-                isRichText: true
+                isRichText: true,
+                comment: comment || null
+              };
+            } else if (comment) {
+              // No links found in runs, but has comment
+              record[header.toLowerCase().replace(/\s+/g, '_')] = {
+                text: cellValue,
+                comment: comment,
+                hasComment: true
               };
             } else {
-              // No links found in runs, just store as plain text
+              // No links, just plain text
               record[header.toLowerCase().replace(/\s+/g, '_')] = cellValue;
             }
+          } else if (comment) {
+            // Plain text cell with comment
+            record[header.toLowerCase().replace(/\s+/g, '_')] = {
+              text: cellValue,
+              comment: comment,
+              hasComment: true
+            };
           } else {
+            // Plain text cell without comment
             record[header.toLowerCase().replace(/\s+/g, '_')] = cellValue;
           }
         });

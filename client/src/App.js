@@ -336,9 +336,20 @@ function App() {
 
   // Function to detect and render hyperlinks in text
   const renderCellContent = (content, columnName = '') => {
+    // Helper function to wrap content with comment indicator
+    const wrapWithComment = (children, comment) => {
+      if (!comment) return children;
+      return (
+        <div className="cell-with-comment" title={comment}>
+          {children}
+          <span className="comment-indicator" title={comment}>💬</span>
+        </div>
+      );
+    };
+
     // Handle rich text with partial hyperlinks
     if (content && typeof content === 'object' && content.isRichText && content.richText) {
-      return content.richText.map((part, index) => {
+      const richTextContent = content.richText.map((part, index) => {
         if (part.isLink && part.url) {
           return (
             <a
@@ -360,11 +371,12 @@ function App() {
           return <span key={index}>{textParts}</span>;
         }
       });
+      return wrapWithComment(richTextContent, content.comment);
     }
 
     // Handle Google Sheets hyperlink objects (entire cell is a link)
     if (content && typeof content === 'object' && content.isLink) {
-      return (
+      const linkContent = (
         <a
           href={content.url}
           target="_blank"
@@ -375,6 +387,12 @@ function App() {
           {content.text}
         </a>
       );
+      return wrapWithComment(linkContent, content.comment);
+    }
+
+    // Handle cells with comments
+    if (content && typeof content === 'object' && content.hasComment) {
+      return wrapWithComment(content.text || '', content.comment);
     }
 
     // Handle regular text content

@@ -668,6 +668,48 @@ body {
   font-weight: 500;
 }
 
+/* Cell Comments */
+.cell-with-comment {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pf-v5-global--spacer--xs);
+  position: relative;
+}
+
+.comment-indicator {
+  font-size: 0.85rem;
+  opacity: 0.6;
+  cursor: help;
+  transition: opacity 0.2s, transform 0.2s;
+  display: inline-block;
+}
+
+.comment-indicator:hover {
+  opacity: 1;
+  transform: scale(1.2);
+}
+
+/* Tooltip styling for cells with comments */
+.cell-with-comment[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  left: 0;
+  top: 100%;
+  margin-top: 4px;
+  padding: var(--pf-v5-global--spacer--sm) var(--pf-v5-global--spacer--md);
+  background-color: var(--pf-v5-global--BackgroundColor--dark-100);
+  color: var(--pf-v5-global--BackgroundColor--100);
+  border-radius: 4px;
+  font-size: var(--pf-v5-global--FontSize--sm);
+  white-space: normal;
+  max-width: 300px;
+  width: max-content;
+  z-index: 1000;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  line-height: 1.4;
+  pointer-events: none;
+}
+
 /* Empty State */
 .empty-state {
   padding: var(--pf-v5-global--spacer--2xl);
