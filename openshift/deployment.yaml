@@ -34,6 +34,8 @@ spec:
           value: "3001"
         - name: NODE_ENV
           value: "production"
+        - name: DATA_DIR
+          value: "/app/server/data"
         - name: GOOGLE_SHEET_ID
           valueFrom:
             configMapKeyRef:

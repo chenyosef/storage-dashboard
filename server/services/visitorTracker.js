@@ -4,7 +4,8 @@ const crypto = require('crypto');
 
 class VisitorTracker {
   constructor() {
-    this.dataDir = path.join(__dirname, '../data');
+    // Use environment variable for data directory, fallback to ../data for local dev
+    this.dataDir = process.env.DATA_DIR || path.join(__dirname, '../data');
     this.visitorFile = path.join(this.dataDir, 'visitors.json');
     this.ensureDataDirectory();
     this.loadVisitorData();

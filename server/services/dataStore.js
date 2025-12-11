@@ -6,7 +6,9 @@ class DataStore {
     this.data = {}; // Changed to object to store data by sheet name
     this.sheetNames = [];
     this.lastSyncTime = null;
-    this.dataFile = path.join(__dirname, '../data/storage-data.json');
+    // Use environment variable for data directory, fallback to ../data for local dev
+    const dataDir = process.env.DATA_DIR || path.join(__dirname, '../data');
+    this.dataFile = path.join(dataDir, 'storage-data.json');
     this.ensureDataDirectory();
     this.loadData();
   }
