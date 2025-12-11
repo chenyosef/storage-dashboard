@@ -616,6 +616,16 @@ body {
   z-index: 1;
 }
 
+.data-table th.has-note {
+  cursor: help;
+}
+
+.header-note-indicator {
+  margin-left: var(--pf-v5-global--spacer--xs);
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
 .data-table td {
   padding: var(--pf-v5-global--spacer--md) var(--pf-v5-global--spacer--lg);
   border-bottom: var(--pf-v5-global--BorderWidth--sm) solid var(--pf-v5-global--BorderColor--100);

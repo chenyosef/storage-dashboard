@@ -6,13 +6,15 @@ router.get('/', (req, res) => {
   try {
     const { sheet } = req.query;
     const dataStore = req.app.locals.dataStore;
-    
+
     if (sheet) {
       // Get specific sheet data
       const data = dataStore.getSheetData(sheet);
+      const headerNotes = dataStore.getHeaderNotes(sheet);
       res.json({
         success: true,
         data,
+        headerNotes,
         sheetName: sheet,
         count: data.length,
         lastSync: dataStore.getLastSyncTime()
@@ -20,11 +22,13 @@ router.get('/', (req, res) => {
     } else {
       // Get all sheets data
       const data = dataStore.getAllData();
+      const headerNotes = dataStore.getHeaderNotes();
       const totalRecords = Object.values(data).reduce((sum, sheet) => sum + sheet.length, 0);
-      
+
       res.json({
         success: true,
         data,
+        headerNotes,
         sheetNames: dataStore.getSheetNames(),
         count: totalRecords,
         lastSync: dataStore.getLastSyncTime()

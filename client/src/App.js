@@ -16,6 +16,7 @@ function App() {
   // Sheet/tab states
   const [sheetNames, setSheetNames] = useState([]);
   const [activeSheet, setActiveSheet] = useState('');
+  const [headerNotes, setHeaderNotes] = useState({});
 
   // Filter states
   const [vendors, setVendors] = useState([]);
@@ -67,21 +68,23 @@ function App() {
         // Multi-sheet data
         setData(response.data.data);
         setSheetNames(response.data.sheetNames || Object.keys(response.data.data));
-        
+        setHeaderNotes(response.data.headerNotes || {});
+
         // Set initial active sheet if not set
         if (!activeSheet && response.data.sheetNames && response.data.sheetNames.length > 0) {
           setActiveSheet(response.data.sheetNames[0]);
         }
-        
+
         // Extract filter options from current active sheet data
         const currentSheetData = response.data.data[activeSheet] || [];
         extractFilterOptions(currentSheetData);
       } else {
         // Legacy single sheet data
         setData(response.data.data || []);
+        setHeaderNotes(response.data.headerNotes || {});
         extractFilterOptions(response.data.data || []);
       }
-      
+
       setLastSync(response.data.lastSync);
       setError(null);
     } catch (err) {
@@ -775,11 +778,16 @@ function App() {
                 <table className="data-table">
                   <thead>
                     <tr>
-                      {columns.map(column => (
-                        <th key={column}>
-                          {column.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                        </th>
-                      ))}
+                      {columns.map(column => {
+                        const currentHeaderNotes = headerNotes[activeSheet] || {};
+                        const note = currentHeaderNotes[column];
+                        return (
+                          <th key={column} title={note || undefined} className={note ? 'has-note' : ''}>
+                            {column.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            {note && <span className="header-note-indicator">ℹ️</span>}
+                          </th>
+                        );
+                      })}
                     </tr>
                   </thead>
                   <tbody>

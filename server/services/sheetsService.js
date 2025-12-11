@@ -78,6 +78,18 @@ class SheetsService {
 
       // Assume first row contains headers
       const headers = rows[0];
+
+      // Extract notes from header row for column descriptions
+      const headerNotes = {};
+      if (gridData.length > 0 && gridData[0]?.values) {
+        gridData[0].values.forEach((cell, index) => {
+          if (cell?.note && headers[index]) {
+            const headerKey = headers[index].toLowerCase().replace(/\s+/g, '_');
+            headerNotes[headerKey] = cell.note;
+          }
+        });
+      }
+
       const data = [];
 
       for (let i = 1; i < rows.length; i++) {
@@ -180,7 +192,8 @@ class SheetsService {
       }
 
       console.log(`Fetched ${data.length} records from sheet: ${sheetName || 'default'}`);
-      return data;
+      console.log(`Header notes found: ${Object.keys(headerNotes).length} columns with notes`);
+      return { data, headerNotes };
     } catch (error) {
       console.error(`Error fetching data from sheet ${sheetName || 'default'}:`, error.message);
       throw error;
@@ -196,6 +209,7 @@ class SheetsService {
       // Get sheet info to find all sheet names
       const sheetsInfo = await this.getSheetInfo();
       const allData = {};
+      const allHeaderNotes = {};
 
       // Fetch data from each sheet (excluding WIP sheets)
       for (const sheet of sheetsInfo.sheets) {
@@ -206,16 +220,18 @@ class SheetsService {
         }
 
         try {
-          const data = await this.fetchData(sheet.title);
-          allData[sheet.title] = data;
+          const result = await this.fetchData(sheet.title);
+          allData[sheet.title] = result.data;
+          allHeaderNotes[sheet.title] = result.headerNotes;
         } catch (error) {
           console.warn(`Failed to fetch data from sheet '${sheet.title}':`, error.message);
           allData[sheet.title] = [];
+          allHeaderNotes[sheet.title] = {};
         }
       }
 
       console.log(`Fetched data from ${Object.keys(allData).length} sheets`);
-      return allData;
+      return { data: allData, headerNotes: allHeaderNotes };
     } catch (error) {
       console.error('Error fetching data from all sheets:', error.message);
       throw error;

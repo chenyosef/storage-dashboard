@@ -5,6 +5,7 @@ class DataStore {
   constructor() {
     this.data = {}; // Changed to object to store data by sheet name
     this.sheetNames = [];
+    this.headerNotes = {}; // Store header notes for each sheet
     this.lastSyncTime = null;
     // Use environment variable for data directory, fallback to ../data for local dev
     const dataDir = process.env.DATA_DIR || path.join(__dirname, '../data');
@@ -27,6 +28,7 @@ class DataStore {
         const storedData = JSON.parse(fileContent);
         this.data = storedData.data || {};
         this.sheetNames = storedData.sheetNames || [];
+        this.headerNotes = storedData.headerNotes || {};
         this.lastSyncTime = storedData.lastSyncTime || null;
         const totalRecords = Object.values(this.data).reduce((sum, sheet) => sum + sheet.length, 0);
         console.log(`Loaded ${totalRecords} records from ${this.sheetNames.length} sheets from storage`);
@@ -35,6 +37,7 @@ class DataStore {
       console.error('Error loading data from storage:', error.message);
       this.data = {};
       this.sheetNames = [];
+      this.headerNotes = {};
       this.lastSyncTime = null;
     }
   }
@@ -44,6 +47,7 @@ class DataStore {
       const dataToSave = {
         data: this.data,
         sheetNames: this.sheetNames,
+        headerNotes: this.headerNotes,
         lastSyncTime: this.lastSyncTime,
         savedAt: new Date().toISOString()
       };
@@ -53,15 +57,22 @@ class DataStore {
     }
   }
 
-  updateData(newData) {
+  updateData(newData, newHeaderNotes = {}) {
     if (Array.isArray(newData)) {
       // Legacy support for single sheet data
       this.data = { 'Sheet1': newData };
       this.sheetNames = ['Sheet1'];
+      this.headerNotes = { 'Sheet1': {} };
+    } else if (newData.data && newData.headerNotes) {
+      // New format with header notes
+      this.data = newData.data;
+      this.headerNotes = newData.headerNotes;
+      this.sheetNames = Object.keys(newData.data);
     } else {
-      // Multi-sheet data
+      // Multi-sheet data without header notes (backwards compatibility)
       this.data = newData;
       this.sheetNames = Object.keys(newData);
+      this.headerNotes = newHeaderNotes;
     }
     this.lastSyncTime = new Date().toISOString();
     this.saveData();
@@ -77,6 +88,13 @@ class DataStore {
 
   getSheetNames() {
     return this.sheetNames;
+  }
+
+  getHeaderNotes(sheetName = null) {
+    if (sheetName) {
+      return this.headerNotes[sheetName] || {};
+    }
+    return this.headerNotes;
   }
 
   searchData(query, sheetName = null) {
