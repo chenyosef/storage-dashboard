@@ -678,6 +678,77 @@ body {
   font-weight: 500;
 }
 
+/* Status Icons */
+.status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.status-icon svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.status-icon-yes {
+  color: var(--pf-v5-global--BackgroundColor--100);
+  background-color: var(--pf-v5-global--success-color--100);
+  box-shadow: 0 0 0 2px var(--pf-v5-global--palette--green-50);
+}
+
+.status-icon-yes:hover {
+  background-color: var(--pf-v5-global--success-color--200);
+  transform: scale(1.1);
+}
+
+.status-icon-no {
+  color: var(--pf-v5-global--BackgroundColor--100);
+  background-color: var(--pf-v5-global--danger-color--100);
+  box-shadow: 0 0 0 2px var(--pf-v5-global--palette--red-50);
+}
+
+.status-icon-no:hover {
+  background-color: var(--pf-v5-global--danger-color--200);
+  transform: scale(1.1);
+}
+
+.status-icon-progress {
+  color: var(--pf-v5-global--BackgroundColor--100);
+  background-color: var(--pf-v5-global--warning-color--100);
+  box-shadow: 0 0 0 2px var(--pf-v5-global--palette--gold-50);
+}
+
+.status-icon-progress:hover {
+  background-color: var(--pf-v5-global--warning-color--200);
+  transform: scale(1.1);
+}
+
+.status-icon-na {
+  color: var(--pf-v5-global--BackgroundColor--100);
+  background-color: var(--pf-v5-global--palette--orange-300);
+  box-shadow: 0 0 0 2px var(--pf-v5-global--palette--orange-50);
+}
+
+.status-icon-na:hover {
+  background-color: var(--pf-v5-global--palette--orange-400);
+  transform: scale(1.1);
+}
+
+.status-icon-notyet {
+  color: var(--pf-v5-global--BackgroundColor--100);
+  background-color: var(--pf-v5-global--Color--200);
+  box-shadow: 0 0 0 2px var(--pf-v5-global--palette--black-200);
+}
+
+.status-icon-notyet:hover {
+  background-color: var(--pf-v5-global--palette--black-600);
+  transform: scale(1.1);
+}
+
 /* Cell Comments */
 .cell-with-comment {
   display: inline-flex;

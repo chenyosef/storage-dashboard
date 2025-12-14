@@ -337,6 +337,78 @@ function App() {
     return null;
   };
 
+  // Helper function to render status icons
+  const renderStatusIcon = (value) => {
+    if (!value || typeof value !== 'string') return null;
+
+    const normalizedValue = value.trim().toLowerCase();
+
+    // Yes/OK/Supported/Available/Enabled
+    if (normalizedValue === 'yes' || normalizedValue === 'ok' ||
+        normalizedValue === 'supported' || normalizedValue === 'available' ||
+        normalizedValue === 'enabled') {
+      return (
+        <span className="status-icon status-icon-yes" title={value}>
+          <svg viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+          </svg>
+        </span>
+      );
+    }
+
+    // No/Unsupported/Unavailable/Disabled
+    if (normalizedValue === 'no' || normalizedValue === 'unsupported' ||
+        normalizedValue === 'unavailable' || normalizedValue === 'disabled' ||
+        normalizedValue === 'not supported') {
+      return (
+        <span className="status-icon status-icon-no" title={value}>
+          <svg viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+          </svg>
+        </span>
+      );
+    }
+
+    // In Progress/Pending/WIP
+    if (normalizedValue === 'in progress' || normalizedValue === 'pending' ||
+        normalizedValue === 'wip' || normalizedValue === 'in-progress') {
+      return (
+        <span className="status-icon status-icon-progress" title={value}>
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </span>
+      );
+    }
+
+    // N/A/Unknown - Negative context (blocked/not applicable)
+    if (normalizedValue === 'n/a' || normalizedValue === 'na' ||
+        normalizedValue === 'unknown' || normalizedValue === 'not applicable') {
+      return (
+        <span className="status-icon status-icon-na" title={value}>
+          <svg viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clipRule="evenodd" />
+          </svg>
+        </span>
+      );
+    }
+
+    // Not Yet/Not Started/TBD - Neutral/waiting to start
+    if (normalizedValue === 'not yet' || normalizedValue === 'not started' ||
+        normalizedValue === 'tbd' || normalizedValue === 'to be determined' ||
+        normalizedValue === 'waiting') {
+      return (
+        <span className="status-icon status-icon-notyet" title={value}>
+          <svg viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
+          </svg>
+        </span>
+      );
+    }
+
+    return null;
+  };
+
   // Function to detect and render hyperlinks in text
   const renderCellContent = (content, columnName = '') => {
     // Helper function to wrap content with comment indicator
@@ -401,6 +473,12 @@ function App() {
     // Handle regular text content
     if (!content || typeof content !== 'string') {
       return content || '-';
+    }
+
+    // Check if content matches a status icon pattern (Yes/No/In Progress/N/A)
+    const statusIcon = renderStatusIcon(content);
+    if (statusIcon) {
+      return wrapWithComment(statusIcon, null);
     }
 
     // Check if this is a status field and apply color
