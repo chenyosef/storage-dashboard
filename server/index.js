@@ -8,7 +8,9 @@ const { SheetsService } = require('./services/sheetsService');
 const { DataStore } = require('./services/dataStore');
 const { SyncMonitor } = require('./services/syncMonitor');
 const { VisitorTracker } = require('./services/visitorTracker');
+const { FeedbackService } = require('./services/feedbackService');
 const storageRoutes = require('./routes/storage');
+const feedbackRoutes = require('./routes/feedback');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -25,15 +27,18 @@ const dataStore = new DataStore();
 const sheetsService = new SheetsService();
 const syncMonitor = new SyncMonitor();
 const visitorTracker = new VisitorTracker();
+const feedbackService = new FeedbackService();
 
 // Make services available to routes
 app.locals.dataStore = dataStore;
 app.locals.sheetsService = sheetsService;
 app.locals.syncMonitor = syncMonitor;
 app.locals.visitorTracker = visitorTracker;
+app.locals.feedbackService = feedbackService;
 
 // API Routes
 app.use('/api/storage', storageRoutes);
+app.use('/api/feedback', feedbackRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

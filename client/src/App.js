@@ -4,6 +4,248 @@ import './index.css';
 
 const API_BASE = '/api';
 
+// Feedback Modal Component
+function FeedbackModal({ isOpen, onClose, context }) {
+  const [category, setCategory] = useState('');
+  const [email, setEmail] = useState('');
+  const [message, setMessage] = useState('');
+  const [includeContext, setIncludeContext] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+
+  const categories = [
+    'Question',
+    'Insight/Suggestion',
+    'Bug Report',
+    'Data Correction',
+    'Other'
+  ];
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    // Validation
+    if (!category) {
+      setError('Please select a category');
+      return;
+    }
+
+    if (!email || email.trim().length === 0) {
+      setError('Please enter your email address');
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    if (!message || message.trim().length === 0) {
+      setError('Please enter your feedback message');
+      return;
+    }
+
+    if (message.length > 5000) {
+      setError('Message is too long (maximum 5000 characters)');
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      const feedbackData = {
+        category,
+        email: email.trim(),
+        message,
+        context: includeContext ? context : { includeContext: false }
+      };
+
+      const response = await axios.post(`${API_BASE}/feedback`, feedbackData);
+
+      if (response.data.success) {
+        setSuccess(true);
+        setMessage('');
+        setCategory('');
+        setEmail('');
+
+        // Auto-close after 2 seconds
+        setTimeout(() => {
+          onClose();
+          // Reset states after modal closes
+          setTimeout(() => {
+            setSuccess(false);
+            setError('');
+          }, 300);
+        }, 2000);
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to submit feedback. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleClose = () => {
+    if (!submitting) {
+      onClose();
+      // Reset states after modal closes
+      setTimeout(() => {
+        setCategory('');
+        setEmail('');
+        setMessage('');
+        setIncludeContext(true);
+        setError('');
+        setSuccess(false);
+      }, 300);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  // Format context preview
+  const contextPreview = context ? (
+    <div>
+      {context.sheet && <div><strong>Sheet:</strong> {context.sheet}</div>}
+      {context.searchQuery && <div><strong>Search:</strong> "{context.searchQuery}"</div>}
+      {context.filters && Object.keys(context.filters).some(key => context.filters[key] && context.filters[key].length > 0) && (
+        <div><strong>Filters:</strong> Active</div>
+      )}
+    </div>
+  ) : null;
+
+  return (
+    <div className="feedback-modal-overlay" onClick={handleClose}>
+      <div className="feedback-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="feedback-modal-header">
+          <h2 style={{ margin: 0, fontSize: '1.5rem' }}>Share Feedback</h2>
+          <button
+            onClick={handleClose}
+            className="btn btn-outline"
+            style={{ padding: '0.25rem 0.75rem' }}
+            disabled={submitting}
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="feedback-modal-body">
+          {success && (
+            <div className="feedback-success">
+              ✓ Thank you for your feedback! It has been submitted successfully.
+            </div>
+          )}
+
+          {error && (
+            <div className="feedback-error">
+              {error}
+            </div>
+          )}
+
+          {!success && (
+            <form onSubmit={handleSubmit}>
+              <div className="feedback-form-group">
+                <label htmlFor="category" className="feedback-label">
+                  Category *
+                </label>
+                <select
+                  id="category"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="feedback-select"
+                  required
+                  disabled={submitting}
+                >
+                  <option value="">Select a category...</option>
+                  {categories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="feedback-form-group">
+                <label htmlFor="email" className="feedback-label">
+                  Your Email Address *
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="feedback-select"
+                  placeholder="your.email@redhat.com"
+                  required
+                  disabled={submitting}
+                />
+              </div>
+
+              <div className="feedback-form-group">
+                <label htmlFor="message" className="feedback-label">
+                  Your Feedback *
+                </label>
+                <textarea
+                  id="message"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  className="feedback-textarea"
+                  placeholder="Share your question, suggestion, or report an issue..."
+                  required
+                  disabled={submitting}
+                  maxLength={5000}
+                />
+                <div style={{ textAlign: 'right', fontSize: '0.875rem', color: '#6a6e73', marginTop: '0.25rem' }}>
+                  {message.length} / 5000
+                </div>
+              </div>
+
+              {contextPreview && (
+                <div className="feedback-form-group">
+                  <label className="feedback-checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={includeContext}
+                      onChange={(e) => setIncludeContext(e.target.checked)}
+                      className="checkbox-input"
+                      disabled={submitting}
+                    />
+                    <span>Include context about what I'm viewing</span>
+                  </label>
+                  {includeContext && (
+                    <div className="feedback-context-preview">
+                      {contextPreview}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="feedback-actions">
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="btn btn-outline"
+                  disabled={submitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={submitting}
+                >
+                  {submitting ? 'Submitting...' : 'Submit Feedback'}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [data, setData] = useState({});
   const [filteredData, setFilteredData] = useState([]);
@@ -27,6 +269,9 @@ function App() {
   // Smart checkbox filters
   const [availableFilters, setAvailableFilters] = useState({});
   const [selectedFilters, setSelectedFilters] = useState({});
+
+  // Feedback modal state
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -644,6 +889,21 @@ function App() {
           </div>
           <div className="header-actions">
             <button
+              className="btn btn-feedback"
+              onClick={() => setFeedbackModalOpen(true)}
+              title="Share feedback or report issues"
+            >
+              <svg
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                style={{ width: '1.25rem', height: '1.25rem', marginRight: '0.5rem' }}
+              >
+                <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z" />
+                <path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z" />
+              </svg>
+              Feedback
+            </button>
+            <button
               className="btn btn-primary"
               onClick={handleSync}
               disabled={loading}
@@ -890,6 +1150,21 @@ function App() {
           </div>
         </main>
       </div>
+
+      {/* Feedback Modal */}
+      <FeedbackModal
+        isOpen={feedbackModalOpen}
+        onClose={() => setFeedbackModalOpen(false)}
+        context={{
+          sheet: activeSheet,
+          filters: {
+            ...selectedFilters,
+            vendor: selectedVendor,
+            status: selectedStatus
+          },
+          searchQuery: searchQuery
+        }}
+      />
     </div>
   );
 }
