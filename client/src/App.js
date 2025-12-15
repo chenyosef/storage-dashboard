@@ -651,6 +651,18 @@ function App() {
       );
     }
 
+    // Blocked/Block - Actively blocked or blocker
+    if (normalizedValue === 'blocked' || normalizedValue === 'block' ||
+        normalizedValue === 'blocker' || normalizedValue === 'blocking') {
+      return (
+        <span className="status-icon status-icon-blocked" title={value}>
+          <svg viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+          </svg>
+        </span>
+      );
+    }
+
     return null;
   };
 
@@ -712,7 +724,13 @@ function App() {
 
     // Handle cells with comments
     if (content && typeof content === 'object' && content.hasComment) {
-      return wrapWithComment(content.text || '', content.comment);
+      const textContent = content.text || '';
+      // Check if the text should render as a status icon
+      const statusIcon = renderStatusIcon(textContent);
+      if (statusIcon) {
+        return wrapWithComment(statusIcon, content.comment);
+      }
+      return wrapWithComment(textContent, content.comment);
     }
 
     // Handle regular text content

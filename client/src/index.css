@@ -771,6 +771,20 @@ body {
   transform: scale(1.1);
 }
 
+.status-icon-blocked {
+  color: var(--pf-v5-global--BackgroundColor--100);
+  background-color: #a30000;
+  background-color: var(--pf-v5-global--palette--red-200);
+  box-shadow: 0 0 0 2px var(--pf-v5-global--palette--red-50);
+  border: 2px solid var(--pf-v5-global--danger-color--100);
+}
+
+.status-icon-blocked:hover {
+  background-color: #7d1007;
+  background-color: var(--pf-v5-global--palette--red-300);
+  transform: scale(1.1);
+}
+
 /* Cell Comments */
 .cell-with-comment {
   display: inline-flex;
