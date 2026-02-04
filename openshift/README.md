@@ -287,3 +287,55 @@ oc delete sa storage-dashboard
 # Delete namespace (if desired)
 oc delete namespace storage-dashboard
 ```
+
+# To deploy a storage report deployment
+```bash
+# 1. Create the deployment with
+oc new-app --name web1 --image registry.access.redhat.com/ubi9/httpd-24
+
+
+# 2. Create a small PVC with:
+cat <<EOF | oc apply -f -
+kind:       PersistentVolumeClaim
+apiVersion:    v1
+metadata:
+  name: storage-reports
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: kubevirt-csi-infra-default
+EOF
+
+
+# 3. Configure the deployment to use the PVC for its DocumentRoot
+oc set volume deploy/web1 --add -m /var/www/html --type pvc --claim-name storage-reports --name storage-reports
+
+
+# 4. Create a route to the deployment for it to be accessible via web
+cat <<EOF | oc apply -f -
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  labels:
+    app: web1
+    app.kubernetes.io/component: web1
+    app.kubernetes.io/instance: web1
+  name: web1
+  namespace: storage-test-reports
+spec:
+  host: storage-test-reports.apps.cyosef.apps.eco-engineering.lab.eng.tlv2.redhat.com
+  port:
+    targetPort: web
+  tls:
+    insecureEdgeTerminationPolicy: Redirect
+    termination: edge
+  to:
+    kind: Service
+    name: web1
+    weight: 100
+  wildcardPolicy: None
+EOF
+```
